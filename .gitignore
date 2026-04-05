@@ -1,1 +1,5 @@
 cache
+.env
+*.db
+radio
+radio.exe

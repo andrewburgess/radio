@@ -26,7 +26,7 @@ starting the next.
 ## Code Conventions
 
 - **Language**: Go. Target the latest stable Go version.
-- **Module path**: `github.com/andrewburgess/radio` (initialize with `go mod init`)
+- **Module path**: `andrewburgess.io/radio` (initialize with `go mod init`)
 - **Error handling**: return errors up the call stack; wrap with `fmt.Errorf("context: %w", err)`
 - **Logging**: use `log/slog` structured logging throughout; default level Info
 - **No CGO**: use `modernc.org/sqlite` (pure Go SQLite). Do not use mattn/go-sqlite3.
