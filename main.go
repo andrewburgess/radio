@@ -12,6 +12,14 @@ import (
 )
 
 func main() {
+	// When librespot fires an event it spawns this binary as the --onevent
+	// handler. Detect that case via the PLAYER_EVENT env var librespot sets,
+	// forward the event to the main process over the Unix socket, and exit.
+	if os.Getenv("PLAYER_EVENT") != "" {
+		librespot.RunEventForwarder()
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load config", "err", err)
@@ -29,7 +37,10 @@ func main() {
 		DeviceName: cfg.LibrespotDeviceName,
 		CacheDir:   cfg.LibrespotCacheDir,
 	})
-	lp.Start()
+	if err := lp.Start(); err != nil {
+		slog.Error("failed to start librespot", "err", err)
+		os.Exit(1)
+	}
 	defer lp.Stop()
 
 	srv, err := server.New(cfg)
@@ -40,7 +51,6 @@ func main() {
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-
 	go func() {
 		<-quit
 		slog.Info("shutting down")

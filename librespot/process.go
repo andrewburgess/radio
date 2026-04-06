@@ -3,10 +3,15 @@ package librespot
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -18,13 +23,47 @@ const (
 	EventTrackChanged EventType = iota
 	EventPlaying
 	EventPaused
+	EventSeeked
 	EventStopped
+	EventEndOfTrack
+	EventVolumeChanged
+	EventSessionConnected
+	EventSessionDisconnected
+)
+
+// ItemType distinguishes tracks from podcast episodes.
+type ItemType string
+
+const (
+	ItemTypeTrack   ItemType = "Track"
+	ItemTypeEpisode ItemType = "Episode"
 )
 
 // Event carries a parsed librespot playback event.
 type Event struct {
-	Type     EventType
-	TrackURI string // populated for EventTrackChanged
+	Type EventType
+
+	// TrackChanged, Playing, Paused, Seeked, Stopped, EndOfTrack
+	TrackID string
+
+	// TrackChanged
+	URI        string
+	Name       string
+	DurationMs int
+	ItemType   ItemType
+	Artists    string // comma-separated
+	Album      string
+	ShowName   string // podcast episodes
+
+	// Playing, Paused, Seeked
+	PositionMs int
+
+	// VolumeChanged (0–65535)
+	Volume int
+
+	// SessionConnected, SessionDisconnected
+	UserName     string
+	ConnectionID string
 }
 
 // Config holds the parameters needed to launch librespot.
@@ -34,36 +73,42 @@ type Config struct {
 	CacheDir   string
 }
 
-// Process manages the librespot subprocess lifecycle: it starts the binary,
-// captures its output, restarts it on unexpected exit with exponential backoff,
-// and emits parsed playback events on the Events channel.
+// Process manages the librespot subprocess lifecycle.
 type Process struct {
-	cfg    Config
-	Events chan Event
+	cfg      Config
+	sockPath string
+	Events   chan Event
 
-	mu      sync.Mutex
-	cancel  context.CancelFunc
-	stopCh  chan struct{}
-	stopped bool
+	mu       sync.Mutex
+	cancel   context.CancelFunc
+	listener net.Listener
+	stopCh   chan struct{}
+	stopped  bool
 }
 
-// New creates a Process. Call Start to launch the subprocess.
+// New creates a Process. Call Start to launch librespot.
 func New(cfg Config) *Process {
+	sockPath := filepath.Join(os.TempDir(), fmt.Sprintf("radio-events-%d.sock", os.Getpid()))
 	return &Process{
-		cfg:    cfg,
-		Events: make(chan Event, 16),
-		stopCh: make(chan struct{}),
+		cfg:      cfg,
+		sockPath: sockPath,
+		Events:   make(chan Event, 16),
+		stopCh:   make(chan struct{}),
 	}
 }
 
-// Start launches the librespot subprocess in the background. It returns
-// immediately; the subprocess is restarted on unexpected exit. Call Stop to
-// shut down.
-func (p *Process) Start() {
+// Start opens the event socket, then launches the librespot subprocess in the
+// background. It returns immediately; use Stop to shut down.
+func (p *Process) Start() error {
+	if err := p.startListener(); err != nil {
+		return fmt.Errorf("librespot: event socket: %w", err)
+	}
 	go p.run()
+	return nil
 }
 
-// Stop signals librespot to shut down. It is safe to call more than once.
+// Stop signals librespot to shut down and closes the event socket.
+// It is safe to call more than once.
 func (p *Process) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -74,6 +119,72 @@ func (p *Process) Stop() {
 	close(p.stopCh)
 	if p.cancel != nil {
 		p.cancel()
+	}
+	if p.listener != nil {
+		p.listener.Close()
+	}
+}
+
+// startListener opens the Unix domain socket that event forwarder subprocesses
+// connect to for each librespot event.
+func (p *Process) startListener() error {
+	// Remove any stale socket from a previous run.
+	os.Remove(p.sockPath)
+
+	ln, err := net.Listen("unix", p.sockPath)
+	if err != nil {
+		return err
+	}
+
+	p.mu.Lock()
+	p.listener = ln
+	p.mu.Unlock()
+
+	go p.acceptEvents(ln)
+	return nil
+}
+
+// acceptEvents is the event socket accept loop; runs until Stop closes the
+// listener.
+func (p *Process) acceptEvents(ln net.Listener) {
+	defer os.Remove(p.sockPath)
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			select {
+			case <-p.stopCh:
+				return
+			default:
+				slog.Error("librespot: event socket accept error", "err", err)
+				return
+			}
+		}
+		go p.handleEventConn(conn)
+	}
+}
+
+// handleEventConn reads one JSON-encoded event from conn and emits it on
+// p.Events.
+func (p *Process) handleEventConn(conn net.Conn) {
+	defer conn.Close()
+
+	var raw map[string]string
+	if err := json.NewDecoder(conn).Decode(&raw); err != nil {
+		slog.Error("librespot: event decode error", "err", err)
+		return
+	}
+
+	evt, ok := parseRawEvent(raw)
+	if !ok {
+		slog.Debug("librespot: unhandled event", "player_event", raw["PLAYER_EVENT"])
+		return
+	}
+
+	select {
+	case p.Events <- evt:
+	default:
+		slog.Warn("librespot: event channel full, dropping event", "type", raw["PLAYER_EVENT"])
 	}
 }
 
@@ -102,8 +213,6 @@ func (p *Process) run() {
 		default:
 		}
 
-		// If the process ran for long enough, treat it as a successful run and
-		// reset backoff so the next restart is immediate.
 		if time.Since(start) > 10*time.Second {
 			backoff = minBackoff
 		}
@@ -118,9 +227,8 @@ func (p *Process) run() {
 	}
 }
 
-// launch starts one librespot process, wires up its output pipes, waits for
-// it to exit, and returns any unexpected error. It returns nil if the process
-// was stopped intentionally.
+// launch starts one librespot process and waits for it to exit. Returns nil
+// if the process was stopped intentionally via Stop.
 func (p *Process) launch() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -129,19 +237,29 @@ func (p *Process) launch() error {
 	p.cancel = cancel
 	p.mu.Unlock()
 
+	selfExe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("librespot: resolve executable path: %w", err)
+	}
+
 	cmd := exec.CommandContext(ctx, p.cfg.BinPath,
 		"--name", p.cfg.DeviceName,
 		"--cache", p.cfg.CacheDir,
 		"--disable-audio-cache",
+		"--onevent", selfExe,
 	)
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("librespot: stdout pipe: %w", err)
-	}
+	// Inherit the current environment and add the socket path so that event
+	// forwarder subprocesses know where to connect.
+	cmd.Env = append(os.Environ(), "RADIO_EVENT_SOCKET="+p.sockPath)
+
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return fmt.Errorf("librespot: stderr pipe: %w", err)
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("librespot: stdout pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
@@ -149,17 +267,11 @@ func (p *Process) launch() error {
 	}
 	slog.Info("librespot started", "pid", cmd.Process.Pid, "bin", p.cfg.BinPath)
 
-	// librespot (env_logger) writes all log output to stderr. We parse events
-	// there and forward each line to the structured logger.
-	// stdout is typically empty but we drain it to avoid blocking the process.
-	//
-	// TODO: Confirm the exact log line format for the deployed librespot version
-	// and refine parseEvents. Consider --onevent for structured event delivery.
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		p.parseEvents(stderr)
+		logLines(stderr)
 	}()
 	go func() {
 		defer wg.Done()
@@ -169,7 +281,6 @@ func (p *Process) launch() error {
 
 	if err := cmd.Wait(); err != nil {
 		if ctx.Err() != nil {
-			// Process was killed by Stop(); not an error.
 			return nil
 		}
 		return fmt.Errorf("librespot: %w", err)
@@ -177,34 +288,15 @@ func (p *Process) launch() error {
 	return nil
 }
 
-// parseEvents reads librespot's stderr line by line, emitting parsed playback
-// events on p.Events and forwarding all lines to the structured logger.
-func (p *Process) parseEvents(r io.Reader) {
+// logLines forwards lines from r to the structured logger at Info level.
+func logLines(r io.Reader) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		line := scanner.Text()
-		slog.Info("librespot", "msg", line)
-
-		if evt, ok := parseLine(line); ok {
-			select {
-			case p.Events <- evt:
-			default:
-				slog.Warn("librespot event channel full, dropping event")
-			}
-		}
+		slog.Info("librespot", "msg", scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
 		slog.Error("librespot stderr read error", "err", err)
 	}
-}
-
-// parseLine attempts to parse a librespot log line into a playback event.
-// Returns the event and true if the line matched a known pattern.
-//
-// TODO: Fill in patterns once the exact log format is confirmed against the
-// deployed librespot binary (check PLAN.md open questions).
-func parseLine(line string) (Event, bool) {
-	return Event{}, false
 }
 
 // drainReader discards all output from r.
@@ -212,5 +304,105 @@ func drainReader(r io.Reader) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		slog.Debug("librespot stdout", "line", scanner.Text())
+	}
+}
+
+// parseRawEvent converts the env var map sent by the forwarder into a typed
+// Event. Returns false for event types we don't act on.
+func parseRawEvent(raw map[string]string) (Event, bool) {
+	evt := Event{
+		TrackID:      raw["TRACK_ID"],
+		URI:          raw["URI"],
+		Name:         raw["NAME"],
+		ItemType:     ItemType(raw["ITEM_TYPE"]),
+		Artists:      raw["ARTISTS"],
+		Album:        raw["ALBUM"],
+		ShowName:     raw["SHOW_NAME"],
+		UserName:     raw["USER_NAME"],
+		ConnectionID: raw["CONNECTION_ID"],
+		DurationMs:   parseInt(raw["DURATION_MS"]),
+		PositionMs:   parseInt(raw["POSITION_MS"]),
+		Volume:       parseInt(raw["VOLUME"]),
+	}
+
+	switch raw["PLAYER_EVENT"] {
+	case "track_changed":
+		evt.Type = EventTrackChanged
+	case "playing":
+		evt.Type = EventPlaying
+	case "paused":
+		evt.Type = EventPaused
+	case "seeked":
+		evt.Type = EventSeeked
+	case "stopped":
+		evt.Type = EventStopped
+	case "end_of_track":
+		evt.Type = EventEndOfTrack
+	case "volume_changed":
+		evt.Type = EventVolumeChanged
+	case "session_connected":
+		evt.Type = EventSessionConnected
+	case "session_disconnected":
+		evt.Type = EventSessionDisconnected
+	default:
+		return Event{}, false
+	}
+
+	return evt, true
+}
+
+func parseInt(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
+}
+
+// RunEventForwarder is called when the binary is invoked by librespot as the
+// --onevent handler. It reads the event env vars librespot set, connects to
+// the event socket, and writes a JSON-encoded map of the vars.
+//
+// Detection: librespot always sets PLAYER_EVENT before invoking the handler,
+// so main calls this when that variable is present.
+func RunEventForwarder() {
+	sockPath := os.Getenv("RADIO_EVENT_SOCKET")
+	if sockPath == "" {
+		fmt.Fprintln(os.Stderr, "radio event forwarder: RADIO_EVENT_SOCKET not set")
+		os.Exit(1)
+	}
+
+	keys := []string{
+		"PLAYER_EVENT",
+		"TRACK_ID", "URI", "NAME", "DURATION_MS", "POSITION_MS",
+		"ITEM_TYPE", "ARTISTS", "ALBUM", "ALBUM_ARTISTS",
+		"SHOW_NAME", "PUBLISH_TIME",
+		"NUMBER", "DISC_NUMBER",
+		"VOLUME",
+		"SHUFFLE", "REPEAT", "AUTO_PLAY",
+		"USER_NAME", "CONNECTION_ID",
+		"CLIENT_ID", "CLIENT_NAME",
+	}
+
+	payload := make(map[string]string, len(keys))
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			payload[k] = v
+		}
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "radio event forwarder: marshal: %v\n", err)
+		os.Exit(1)
+	}
+
+	conn, err := net.Dial("unix", sockPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "radio event forwarder: dial: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close()
+
+	if _, err := conn.Write(data); err != nil {
+		fmt.Fprintf(os.Stderr, "radio event forwarder: write: %v\n", err)
+		os.Exit(1)
 	}
 }
