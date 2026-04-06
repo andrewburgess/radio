@@ -1,5 +1,18 @@
 # Zenith Radio — Claude Working Notes
 
+## Documentation Maintenance
+
+Whenever a design decision is made, an approach changes, or new env vars /
+conventions are introduced, update **all three** of these files before moving on:
+
+- **CLAUDE.md** — conventions, env vars, constraints, dev notes
+- **PLAN.md** — architecture decisions, phase descriptions, open questions
+- **README.md** — user-facing build and setup instructions
+
+Do not leave them out of sync.
+
+---
+
 ## Project Summary
 
 A Go + HTMX application running on a Raspberry Pi 4 inside a retrofitted Zenith
@@ -96,6 +109,8 @@ Do not create files outside this structure without a good reason.
 | `PORT`                    | HTTP listen port                                 | `8080`      |
 | `DB_PATH`                 | Path to SQLite database file                     | `radio.db`  |
 | `LIBRESPOT_BIN`           | Path to librespot binary                         | `librespot` |
+| `LIBRESPOT_DEVICE_NAME`   | Spotify Connect device name                      | `Zenith Radio` |
+| `LIBRESPOT_CACHE_DIR`     | Directory for librespot credential/file cache    | `librespot-cache` |
 | `BUCKET_COUNT`            | Number of dial stations                          | `12`        |
 | `PODCAST_WINDOW_DAYS`     | Episode recency window for podcast cron          | `14`        |
 | `PODCAST_CRON_INTERVAL`   | How often the podcast cron runs (e.g. `6h`)      | `6h`        |
@@ -116,6 +131,7 @@ Apply schema via embedded SQL in `store/store.go` on first open (`CREATE TABLE I
   run on a dev machine (Linux/macOS/Windows) for faster iteration.
 - Hardware packages (`hardware/`, TMAG5273 reads, GPIO toggle) will only work
   on the Pi; guard with a build tag or a mock interface when running locally.
-- `librespot` must be installed separately on the Pi; it is not bundled.
+- Pre-built librespot binaries are in `bin/` (`librespot-linux-arm64` for the Pi,
+  `librespot-darwin-amd64` for macOS dev). Set `LIBRESPOT_BIN` to the appropriate path.
 - Static noise file (`static/noise.mp3`) must be sourced and committed before
   Phase 5 is functional.
