@@ -13,6 +13,8 @@ type Config struct {
 	Port                  string
 	DBPath                string
 	LibrespotBin          string
+	LibrespotDeviceName   string
+	LibrespotCacheDir     string
 	BucketCount           int
 	PodcastWindowDays     int
 	PodcastCronInterval   time.Duration
@@ -55,9 +57,11 @@ func Load() (*Config, error) {
 	loadDotEnv()
 
 	cfg := &Config{
-		Port:         getEnv("PORT", "8080"),
-		DBPath:       getEnv("DB_PATH", "radio.db"),
-		LibrespotBin: getEnv("LIBRESPOT_BIN", "librespot"),
+		Port:                getEnv("PORT", "8080"),
+		DBPath:              getEnv("DB_PATH", "radio.db"),
+		LibrespotBin:        getEnv("LIBRESPOT_BIN", "librespot"),
+		LibrespotDeviceName: getEnv("LIBRESPOT_DEVICE_NAME", "Zenith Radio"),
+		LibrespotCacheDir:   getEnv("LIBRESPOT_CACHE_DIR", "librespot-cache"),
 	}
 
 	var err error
