@@ -338,6 +338,26 @@ functional before starting the next.
     - If podcast mode → look up `podcast_playlists`, compute radio time, call
       `spotify.PlayAt`
 
+### Phase 10 — Cleanup & Hardening
+
+Remove temporary scaffolding, replace file-based stubs with proper persistence,
+and make the binary production-ready.
+
+- **Remove `/debug/play` endpoint** (`server/handlers.go`, `server/server.go`)
+  and the `SPOTIFY_TEST_PLAYLIST` config var (`config/config.go`, `.env.example`)
+  — replaced by the real station-switch logic wired up in Phase 9
+- **Migrate `FileTokenStore` to SQLite** (`spotify/auth.go`) — swap
+  `FileTokenStore` for a `SQLiteTokenStore` backed by the `tokens` table from
+  Phase 9; remove `SPOTIFY_TOKEN_FILE` config var and `spotify-tokens.json`
+- **Promote the Spotify "not authorized" warning to a redirect** (`main.go`) —
+  instead of logging a warning and continuing, redirect all non-auth HTTP
+  requests to `/auth` until a token is present
+- **Review logging levels** — audit `slog.Info` calls that are too noisy for
+  normal operation (e.g. per-event librespot lines) and demote to `Debug`
+- **Graceful HTTP shutdown** (`server/server.go`) — replace
+  `http.ListenAndServe` with `http.Server` + `Shutdown(ctx)` so in-flight
+  requests drain cleanly on SIGINT/SIGTERM
+
 ---
 
 ## Hardware Reference

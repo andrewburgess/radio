@@ -35,6 +35,7 @@ starting the next.
 7. **Phase 7** — SSE endpoint (real-time push to browser clients)
 8. **Phase 8** — HTMX UI (now-playing, music config, podcast config)
 9. **Phase 9** — SQLite persistence (schema, store layer, wiring)
+10. **Phase 10** — Cleanup & hardening (remove debug scaffolding, migrate FileTokenStore to SQLite, graceful shutdown)
 
 ## Code Conventions
 

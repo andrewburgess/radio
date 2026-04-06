@@ -22,6 +22,7 @@ type Config struct {
 	SpotifyClientSecret   string
 	SpotifyRedirectURI    string
 	SpotifyTokenFile      string
+	SpotifyTestPlaylist   string
 }
 
 func loadDotEnv() {
@@ -97,7 +98,8 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: SPOTIFY_REDIRECT_URI is required")
 	}
 
-	cfg.SpotifyTokenFile = getEnv("SPOTIFY_TOKEN_FILE", "spotify-tokens.json")
+	cfg.SpotifyTokenFile    = getEnv("SPOTIFY_TOKEN_FILE", "spotify-tokens.json")
+	cfg.SpotifyTestPlaylist = os.Getenv("SPOTIFY_TEST_PLAYLIST")
 
 	return cfg, nil
 }

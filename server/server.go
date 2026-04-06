@@ -41,6 +41,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /auth", s.handleAuth)
 	s.mux.HandleFunc("GET /auth/callback", s.handleAuthCallback)
+	s.mux.HandleFunc("GET /debug/play", s.handleDebugPlay)
 }
 
 func (s *Server) Start() error {
