@@ -53,6 +53,12 @@ starting the next.
   No config files; no flags.
 - **Tests**: write unit tests for pure logic (radio time calculation, round-robin
   interleave, angle→bucket mapping). Hardware-dependent code does not need tests.
+- **Build tags**: use the `pi` build tag to gate real hardware implementations.
+  Every file in `hardware/` that uses `periph.io` or GPIO/I2C must have
+  `//go:build pi` at the top. Each must have a corresponding `_mock.go` file
+  with `//go:build !pi` that satisfies the same interface with no-op or
+  simulated behaviour. Build for the Pi with `go build -tags pi`; dev builds
+  use `go build` (no tag) and get the mocks automatically.
 
 ## Key Dependencies
 
