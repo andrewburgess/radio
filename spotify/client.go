@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -342,14 +343,31 @@ func (c *Client) do(req *http.Request, out any) error {
 	return nil
 }
 
-// spotifyID extracts the resource ID from a Spotify URI.
-// "spotify:playlist:37i9dQZF1DX..." → "37i9dQZF1DX..."
-// If the input doesn't look like a URI it is returned unchanged (treated as a
-// bare ID).
-func spotifyID(uri string) string {
-	parts := strings.Split(uri, ":")
-	if len(parts) == 3 {
+// spotifyID extracts the resource ID from a Spotify URI, a Spotify web URL,
+// or a bare ID. Returns an empty string if the input is unrecognisable.
+//
+//   - URI:     "spotify:playlist:4CcJtLqObbg4L5YEXaNrlY"                              → "4CcJtLqObbg4L5YEXaNrlY"
+//   - URL:     "https://open.spotify.com/playlist/4CcJtLqObbg4L5YEXaNrlY?si=..."      → "4CcJtLqObbg4L5YEXaNrlY"
+//   - Bare ID: "4CcJtLqObbg4L5YEXaNrlY"                                               → "4CcJtLqObbg4L5YEXaNrlY"
+func spotifyID(input string) string {
+	// https://open.spotify.com/{type}/{id}?si=...
+	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
+		u, err := url.Parse(input)
+		if err != nil {
+			return ""
+		}
+		segments := strings.Split(strings.Trim(u.Path, "/"), "/")
+		if len(segments) >= 2 {
+			return segments[len(segments)-1]
+		}
+		return ""
+	}
+
+	// spotify:{type}:{id}
+	if parts := strings.Split(input, ":"); len(parts) == 3 {
 		return parts[2]
 	}
-	return uri
+
+	// Assume bare ID.
+	return input
 }
