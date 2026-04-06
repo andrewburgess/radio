@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"andrewburgess.io/radio/config"
+	"andrewburgess.io/radio/spotify"
 )
 
 //go:embed templates/*
@@ -16,9 +17,10 @@ type Server struct {
 	cfg       *config.Config
 	mux       *http.ServeMux
 	templates *template.Template
+	spotify   *spotify.Client
 }
 
-func New(cfg *config.Config) (*Server, error) {
+func New(cfg *config.Config, spotifyClient *spotify.Client) (*Server, error) {
 	tmpl, err := template.ParseFS(templateFS, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -28,6 +30,7 @@ func New(cfg *config.Config) (*Server, error) {
 		cfg:       cfg,
 		mux:       http.NewServeMux(),
 		templates: tmpl,
+		spotify:   spotifyClient,
 	}
 
 	s.registerRoutes()
@@ -36,6 +39,8 @@ func New(cfg *config.Config) (*Server, error) {
 
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /", s.handleIndex)
+	s.mux.HandleFunc("GET /auth", s.handleAuth)
+	s.mux.HandleFunc("GET /auth/callback", s.handleAuthCallback)
 }
 
 func (s *Server) Start() error {

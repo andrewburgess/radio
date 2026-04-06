@@ -9,6 +9,7 @@ import (
 	"andrewburgess.io/radio/config"
 	"andrewburgess.io/radio/librespot"
 	"andrewburgess.io/radio/server"
+	"andrewburgess.io/radio/spotify"
 )
 
 func main() {
@@ -32,6 +33,22 @@ func main() {
 		"db_path", cfg.DBPath,
 	)
 
+	tokenStore := spotify.NewFileTokenStore(cfg.SpotifyTokenFile)
+	auth, err := spotify.NewAuth(
+		cfg.SpotifyClientID,
+		cfg.SpotifyClientSecret,
+		cfg.SpotifyRedirectURI,
+		tokenStore,
+	)
+	if err != nil {
+		slog.Error("failed to initialize Spotify auth", "err", err)
+		os.Exit(1)
+	}
+	if !auth.HasToken() {
+		slog.Warn("Spotify not authorized — visit /auth in a browser to complete setup")
+	}
+	spotifyClient := spotify.NewClient(auth)
+
 	lp := librespot.New(librespot.Config{
 		BinPath:    cfg.LibrespotBin,
 		DeviceName: cfg.LibrespotDeviceName,
@@ -43,7 +60,7 @@ func main() {
 	}
 	defer lp.Stop()
 
-	srv, err := server.New(cfg)
+	srv, err := server.New(cfg, spotifyClient)
 	if err != nil {
 		slog.Error("failed to create server", "err", err)
 		os.Exit(1)

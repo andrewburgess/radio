@@ -3,3 +3,6 @@ cache
 *.db
 radio
 radio.exe
+radio-linux-arm64
+spotify-tokens.json
+librespot-cache/
