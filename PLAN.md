@@ -179,11 +179,12 @@ functional before starting the next.
 
 ### Phase 2 — librespot Integration
 
-- Implement subprocess manager: start, capture stderr (forwarded to slog), restart on exit with exponential backoff
+- Implement subprocess manager: start, capture stderr (forwarded to slog),
+  restart on exit with exponential backoff
 - Receive playback events via `--onevent`: librespot spawns the `radio` binary
   for each event; the binary detects `PLAYER_EVENT` in env, connects to a Unix
-  socket opened by the main process, and forwards event data as JSON.
-  Handled events: `track_changed`, `playing`, `paused`, `seeked`, `stopped`,
+  socket opened by the main process, and forwards event data as JSON. Handled
+  events: `track_changed`, `playing`, `paused`, `seeked`, `stopped`,
   `end_of_track`, `volume_changed`, `session_connected`, `session_disconnected`
 - Implement Spotify Web API client:
     - Authorization Code flow (browser-based, one-time setup)
@@ -224,12 +225,17 @@ functional before starting the next.
 ### Phase 5 — Static Audio
 
 - Implement `audio.Static`: managed ffmpeg (or aplay) subprocess that plays the
-  bundled `noise.mp3` on loop
-- Expose `Start()` and `Stop()` methods; `Stop()` kills the subprocess cleanly
-- Station-switch logic: if new bucket is unassigned → `librespot.Pause()` +
-  `audio.Static.Start()`; if leaving a static bucket → `audio.Static.Stop()` +
-  proceed with normal station switch
-- Bundle a suitable static/noise audio file with the repo
+  bundled `noise.mp3` on loop with automatic restart on unexpected exit
+- Expose `Start()`, `Stop()`, and `IsPlaying()` methods
+- Player is configurable via `STATIC_AUDIO_BIN` (default `ffmpeg`),
+  `STATIC_AUDIO_FILE` (default `static/noise.mp3`), and `STATIC_AUDIO_SINK`
+  (ALSA device e.g. `hw:0`; empty = auto, suitable for macOS dev)
+- `audio.Static` is initialised in `main.go`; `Start()`/`Stop()` are called by
+  station-switch logic in Phase 9
+- Station-switch logic (Phase 9): if new bucket is unassigned →
+  `librespot.Pause()` + `audio.Static.Start()`; if leaving a static bucket →
+  `audio.Static.Stop()` + proceed with normal station switch
+- `static/noise.mp3` is stored in Git LFS (tracked via `.gitattributes`)
 
 ### Phase 6 — Podcast Scheduler
 
@@ -344,8 +350,9 @@ Remove temporary scaffolding, replace file-based stubs with proper persistence,
 and make the binary production-ready.
 
 - **Remove `/debug/play` endpoint** (`server/handlers.go`, `server/server.go`)
-  and the `SPOTIFY_TEST_PLAYLIST` config var (`config/config.go`, `.env.example`)
-  — replaced by the real station-switch logic wired up in Phase 9
+  and the `SPOTIFY_TEST_PLAYLIST` config var (`config/config.go`,
+  `.env.example`) — replaced by the real station-switch logic wired up in Phase
+  9
 - **Migrate `FileTokenStore` to SQLite** (`spotify/auth.go`) — swap
   `FileTokenStore` for a `SQLiteTokenStore` backed by the `tokens` table from
   Phase 9; remove `SPOTIFY_TOKEN_FILE` config var and `spotify-tokens.json`
@@ -383,8 +390,8 @@ and make the binary production-ready.
   collection. Both managed via `/config` in the browser UI — no preset-save dial
   interaction needed since bucket count is fixed.
 - **DAC/Amp HAT**: Blocked on confirming driver impedance (4Ω vs 8Ω).
-- **librespot version**: v0.8.0. Events delivered via `--onevent` env vars;
-  full event reference at https://github.com/librespot-org/librespot/wiki/Events.
+- **librespot version**: v0.8.0. Events delivered via `--onevent` env vars; full
+  event reference at https://github.com/librespot-org/librespot/wiki/Events.
 - **Static audio file**: A suitable looping static/noise audio file needs to be
   sourced or generated and bundled with the repo. Format should be compatible
   with aplay (WAV) or ffmpeg (anything).

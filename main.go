@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"andrewburgess.io/radio/audio"
 	"andrewburgess.io/radio/config"
 	"andrewburgess.io/radio/events"
 	"andrewburgess.io/radio/hardware"
@@ -61,6 +62,15 @@ func main() {
 		os.Exit(1)
 	}
 	defer lp.Stop()
+
+	staticAudio := audio.NewStatic(audio.Config{
+		Bin:  cfg.StaticAudioBin,
+		File: cfg.StaticAudioFile,
+		Sink: cfg.StaticAudioSink,
+	})
+	// staticAudio.Start() / Stop() are called by station-switch logic (Phase 9).
+	// Ensure it is stopped on shutdown.
+	defer staticAudio.Stop()
 
 	bus := events.New()
 	go forwardLibrespotEvents(lp.Events, bus)

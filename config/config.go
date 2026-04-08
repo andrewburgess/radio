@@ -24,6 +24,11 @@ type Config struct {
 	SpotifyTokenFile    string
 	SpotifyTestPlaylist string
 
+	// Static audio
+	StaticAudioBin  string
+	StaticAudioFile string
+	StaticAudioSink string
+
 	// Hardware
 	DialI2CBus       string
 	DialI2CAddr      string
@@ -111,6 +116,11 @@ func Load() (*Config, error) {
 
 	cfg.SpotifyTokenFile    = getEnv("SPOTIFY_TOKEN_FILE", "spotify-tokens.json")
 	cfg.SpotifyTestPlaylist = os.Getenv("SPOTIFY_TEST_PLAYLIST")
+
+	// Static audio
+	cfg.StaticAudioBin  = getEnv("STATIC_AUDIO_BIN", "ffmpeg")
+	cfg.StaticAudioFile = getEnv("STATIC_AUDIO_FILE", "static/noise.mp3")
+	cfg.StaticAudioSink = os.Getenv("STATIC_AUDIO_SINK")
 
 	// Hardware
 	cfg.DialI2CBus      = getEnv("DIAL_I2C_BUS", "I2C1")
