@@ -1,7 +1,205 @@
 {{define "content"}}
-<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; gap:1rem; text-align:center;">
-    <div style="font-size:3rem;">&#128251;</div>
-    <h2 style="color:#c8a84b; letter-spacing:0.2em;">ZENITH RADIO</h2>
-    <p style="color:#555; font-size:0.85rem;">Server online &mdash; bucket count: {{.BucketCount}}</p>
+<style>
+    .np-meta {
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        color: #555;
+        margin-bottom: 2.5rem;
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+    .np-meta span {
+        color: #888;
+    }
+    .np-meta .highlight {
+        color: #c8a84b;
+    }
+    .np-card {
+        max-width: 520px;
+    }
+    .np-label {
+        font-size: 0.65rem;
+        letter-spacing: 0.15em;
+        color: #444;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+    }
+    .np-track {
+        font-size: 1.5rem;
+        color: #e0e0e0;
+        letter-spacing: 0.05em;
+        line-height: 1.3;
+        margin-bottom: 0.5rem;
+        min-height: 2rem;
+    }
+    .np-artists {
+        font-size: 0.9rem;
+        color: #888;
+        margin-bottom: 0.25rem;
+        min-height: 1.2rem;
+    }
+    .np-album {
+        font-size: 0.8rem;
+        color: #555;
+        margin-bottom: 1.5rem;
+        min-height: 1rem;
+    }
+    .np-status {
+        font-size: 0.8rem;
+        letter-spacing: 0.1em;
+        color: #4caf50;
+    }
+    .np-status.paused {
+        color: #555;
+    }
+    .no-signal {
+        font-size: 1.1rem;
+        letter-spacing: 0.25em;
+        color: #333;
+        padding: 2rem 0;
+        animation: flicker 3s infinite;
+    }
+    .np-power-off {
+        opacity: 0.25;
+        pointer-events: none;
+    }
+    @keyframes flicker {
+        0%,
+        100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.6;
+        }
+        75% {
+            opacity: 0.85;
+        }
+    }
+</style>
+
+{{$static := .StaticPlaying}} {{$playing := .Playing}}
+
+<div class="np-meta">
+    <span
+        >STATION <span id="np-bucket" class="highlight">{{.Bucket}}</span></span
+    >
+    <span id="np-mode"
+        >{{if eq (print .Mode) "podcast"}}PODCAST{{else}}MUSIC{{end}}</span
+    >
+    <span>VOL <span id="np-volume">{{.Volume}}</span>%</span>
+    <span id="np-power-label">{{if .PowerOn}}ON{{else}}OFF{{end}}</span>
 </div>
+
+<div id="np-card" class="np-card{{if not .PowerOn}} np-power-off{{end}}">
+    <div
+        id="np-signal"
+        class="no-signal"
+        {{if
+        not
+        $static}}
+        style="display: none"
+        {{end}}
+    >
+        ~~~~ NO SIGNAL ~~~~
+    </div>
+    <div id="np-track-info" {{if $static}} style="display: none" {{end}}>
+        <div class="np-label">NOW PLAYING</div>
+        <div id="np-track" class="np-track">
+            {{if .TrackName}}{{.TrackName}}{{else}}&mdash;{{end}}
+        </div>
+        <div id="np-artists" class="np-artists">
+            {{if .Artists}}{{.Artists}}{{else if .ShowName}}{{.ShowName}}{{end}}
+        </div>
+        <div id="np-album" class="np-album">{{.Album}}</div>
+        <div id="np-status" class="np-status{{if not $playing}} paused{{end}}">
+            {{if $playing}}&#9654;&#xFE0E; PLAYING{{else}}&#9646;&#9646;
+            PAUSED{{end}}
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const es = new EventSource("/events");
+
+        function set(id, text) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        }
+
+        function setHTML(id, html) {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        }
+
+        function show(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = "";
+        }
+
+        function hide(id) {
+            const el = document.getElementById(id);
+            if (el) el.style.display = "none";
+        }
+
+        es.addEventListener("track", function (e) {
+            const d = JSON.parse(e.data);
+            set("np-track", d.name || "\u2014");
+            set("np-artists", d.artists || d.show_name || "");
+            set("np-album", d.album || "");
+        });
+
+        es.addEventListener("playback", function (e) {
+            const d = JSON.parse(e.data);
+            const el = document.getElementById("np-status");
+            if (!el) return;
+            if (d.playing) {
+                el.innerHTML = "&#9654;&#xFE0E; PLAYING";
+                el.classList.remove("paused");
+            } else {
+                el.innerHTML = "&#9646;&#9646; PAUSED";
+                el.classList.add("paused");
+            }
+        });
+
+        es.addEventListener("static", function (e) {
+            const d = JSON.parse(e.data);
+            if (d.playing) {
+                show("np-signal");
+                hide("np-track-info");
+            } else {
+                hide("np-signal");
+                show("np-track-info");
+            }
+        });
+
+        es.addEventListener("dial", function (e) {
+            const d = JSON.parse(e.data);
+            set("np-bucket", d.bucket);
+        });
+
+        es.addEventListener("mode", function (e) {
+            const d = JSON.parse(e.data);
+            set("np-mode", d.mode === "podcast" ? "PODCAST" : "MUSIC");
+        });
+
+        es.addEventListener("power", function (e) {
+            const d = JSON.parse(e.data);
+            const card = document.getElementById("np-card");
+            const label = document.getElementById("np-power-label");
+            if (card) card.classList.toggle("np-power-off", !d.on);
+            if (label) label.textContent = d.on ? "ON" : "OFF";
+        });
+
+        es.addEventListener("volume", function (e) {
+            const d = JSON.parse(e.data);
+            set("np-volume", d.volume);
+        });
+
+        es.onerror = function () {
+            console.warn("SSE connection lost, will reconnect automatically");
+        };
+    })();
+</script>
 {{end}}

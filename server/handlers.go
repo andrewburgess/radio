@@ -10,9 +10,7 @@ import (
 )
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "index", "base", map[string]any{
-		"BucketCount": s.cfg.BucketCount,
-	})
+	s.render(w, "index", "base", s.state.snapshot(s.cfg.BucketCount))
 }
 
 // handleAuth begins the Spotify OAuth flow by redirecting the user to the
