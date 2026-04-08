@@ -17,25 +17,36 @@ var templateFS embed.FS
 type Server struct {
 	cfg       *config.Config
 	mux       *http.ServeMux
-	templates *template.Template
+	templates map[string]*template.Template
 	spotify   *spotify.Client
 	bus       *events.Bus
+	state     *radioState
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, bus *events.Bus) (*Server, error) {
-	tmpl, err := template.ParseFS(templateFS, "templates/*.html")
-	if err != nil {
-		return nil, err
+	pages := []string{"index", "debug"}
+	templates := make(map[string]*template.Template, len(pages))
+	for _, page := range pages {
+		tmpl, err := template.ParseFS(templateFS,
+			"templates/base.html",
+			"templates/"+page+".html",
+		)
+		if err != nil {
+			return nil, err
+		}
+		templates[page] = tmpl
 	}
 
 	s := &Server{
 		cfg:       cfg,
 		mux:       http.NewServeMux(),
-		templates: tmpl,
+		templates: templates,
 		spotify:   spotifyClient,
 		bus:       bus,
+		state:     newRadioState(),
 	}
 
+	go s.runStateUpdater()
 	s.registerRoutes()
 	return s, nil
 }
@@ -44,7 +55,30 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /auth", s.handleAuth)
 	s.mux.HandleFunc("GET /auth/callback", s.handleAuthCallback)
+	s.mux.HandleFunc("GET /debug", s.handleDebug)
+	s.mux.HandleFunc("GET /debug/state", s.handleDebugState)
+	s.mux.HandleFunc("POST /debug/simulate", s.handleDebugSimulate)
 	s.mux.HandleFunc("GET /debug/play", s.handleDebugPlay)
+}
+
+// render executes the named template from the named page's template set.
+func (s *Server) render(w http.ResponseWriter, page, tmpl string, data any) {
+	t, ok := s.templates[page]
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if err := t.ExecuteTemplate(w, tmpl, data); err != nil {
+		slog.Error("render failed", "page", page, "tmpl", tmpl, "err", err)
+	}
+}
+
+// runStateUpdater subscribes to the event bus and keeps s.state current.
+func (s *Server) runStateUpdater() {
+	ch := s.bus.Subscribe()
+	for e := range ch {
+		s.state.update(e)
+	}
 }
 
 func (s *Server) Start() error {

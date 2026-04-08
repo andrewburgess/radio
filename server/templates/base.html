@@ -1,49 +1,63 @@
 {{define "base"}}
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zenith Radio</title>
-    <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background: #0d0d0d;
-            color: #e0e0e0;
-            font-family: monospace;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        header {
-            padding: 1rem 2rem;
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            gap: 2rem;
-        }
-        header h1 { font-size: 1.2rem; letter-spacing: 0.1em; color: #c8a84b; }
-        nav a {
-            color: #888;
-            text-decoration: none;
-            font-size: 0.85rem;
-            letter-spacing: 0.05em;
-        }
-        nav a:hover { color: #e0e0e0; }
-        main { flex: 1; padding: 2rem; }
-    </style>
-    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
-</head>
-<body>
-    <header>
-        <h1>ZENITH RADIO</h1>
-        <nav>
-            <a href="/">NOW PLAYING</a>
-        </nav>
-    </header>
-    <main>
-        {{template "content" .}}
-    </main>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Zenith Radio</title>
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                background: #0d0d0d;
+                color: #e0e0e0;
+                font-family: monospace;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+            header {
+                padding: 1rem 2rem;
+                border-bottom: 1px solid #333;
+                display: flex;
+                align-items: center;
+                gap: 2rem;
+            }
+            header h1 {
+                font-size: 1.2rem;
+                letter-spacing: 0.1em;
+                color: #c8a84b;
+            }
+            nav a {
+                color: #888;
+                text-decoration: none;
+                font-size: 0.85rem;
+                letter-spacing: 0.05em;
+            }
+            nav a:hover {
+                color: #e0e0e0;
+            }
+            main {
+                flex: 1;
+                padding: 2rem;
+            }
+        </style>
+        <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    </head>
+    <body>
+        <header>
+            <h1>ZENITH RADIO</h1>
+            <nav style="display: flex; gap: 1.5rem">
+                <a href="/">NOW PLAYING</a>
+                <a href="/debug">DEBUG</a>
+            </nav>
+        </header>
+        <main>{{template "content" .}}</main>
+    </body>
 </html>
 {{end}}

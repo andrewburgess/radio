@@ -1,0 +1,256 @@
+{{define "content"}}
+<style>
+    .dbg-section {
+        margin-bottom: 2rem;
+    }
+    .dbg-section h2 {
+        color: #c8a84b;
+        font-size: 0.8rem;
+        letter-spacing: 0.15em;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.3rem;
+        border-bottom: 1px solid #222;
+    }
+    .state-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+    .state-cell {
+        background: #111;
+        border: 1px solid #222;
+        padding: 0.5rem 0.75rem;
+    }
+    .state-cell .lbl {
+        color: #444;
+        font-size: 0.65rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+    .state-cell .val {
+        color: #ccc;
+        margin-top: 0.2rem;
+        font-size: 0.9rem;
+    }
+    .val.green {
+        color: #4caf50;
+    }
+    .val.red {
+        color: #e53935;
+    }
+    .val.gold {
+        color: #c8a84b;
+    }
+    .track-line {
+        color: #666;
+        font-size: 0.82rem;
+        min-height: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .sim-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .sim-group {
+        background: #111;
+        border: 1px solid #222;
+        padding: 0.6rem 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+    }
+    .sim-group .lbl {
+        color: #444;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        min-width: 3.5rem;
+    }
+    input[type="number"] {
+        background: #0d0d0d;
+        border: 1px solid #333;
+        color: #ccc;
+        padding: 0.25rem 0.4rem;
+        font-family: monospace;
+        font-size: 0.85rem;
+        width: 4.5rem;
+    }
+    button {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #aaa;
+        padding: 0.25rem 0.65rem;
+        font-family: monospace;
+        font-size: 0.8rem;
+        cursor: pointer;
+    }
+    button:hover {
+        border-color: #c8a84b;
+        color: #e0e0e0;
+    }
+
+    .event-log {
+        font-size: 0.75rem;
+        max-height: 14rem;
+        overflow-y: auto;
+    }
+    .ev {
+        display: flex;
+        gap: 1rem;
+        padding: 0.15rem 0;
+        border-bottom: 1px solid #111;
+    }
+    .ev .t {
+        color: #333;
+        flex-shrink: 0;
+    }
+    .ev .d {
+        color: #666;
+    }
+    .ev:first-child .t {
+        color: #555;
+    }
+    .ev:first-child .d {
+        color: #999;
+    }
+</style>
+
+<div class="dbg-section">
+    <h2>CURRENT STATE</h2>
+    <div
+        id="state"
+        hx-get="/debug/state"
+        hx-trigger="every 1s"
+        hx-swap="innerHTML"
+    >
+        {{template "debug-state" .}}
+    </div>
+</div>
+
+<div class="dbg-section">
+    <h2>SIMULATE</h2>
+    <div class="sim-row">
+        <form
+            class="sim-group"
+            hx-post="/debug/simulate"
+            hx-target="#state"
+            hx-swap="innerHTML"
+        >
+            <span class="lbl">Dial</span>
+            <input type="hidden" name="action" value="dial" />
+            <input
+                type="number"
+                name="bucket"
+                value="0"
+                min="0"
+                max="{{.BucketMaxIndex}}"
+            />
+            <button type="submit">Move</button>
+        </form>
+
+        <form
+            class="sim-group"
+            hx-post="/debug/simulate"
+            hx-target="#state"
+            hx-swap="innerHTML"
+        >
+            <span class="lbl">Mode</span>
+            <input type="hidden" name="action" value="toggle" />
+            <button name="mode" value="music" type="submit">Music</button>
+            <button name="mode" value="podcast" type="submit">Podcast</button>
+        </form>
+
+        <form
+            class="sim-group"
+            hx-post="/debug/simulate"
+            hx-target="#state"
+            hx-swap="innerHTML"
+        >
+            <span class="lbl">Power</span>
+            <input type="hidden" name="action" value="power" />
+            <button name="power" value="on" type="submit">On</button>
+            <button name="power" value="off" type="submit">Off</button>
+        </form>
+
+        <form
+            class="sim-group"
+            hx-post="/debug/simulate"
+            hx-target="#state"
+            hx-swap="innerHTML"
+        >
+            <span class="lbl">Volume</span>
+            <input type="hidden" name="action" value="volume" />
+            <input type="number" name="volume" value="80" min="0" max="100" />
+            <button type="submit">Set</button>
+        </form>
+    </div>
+</div>
+
+<div class="dbg-section">
+    <h2>EVENT LOG</h2>
+    <div
+        id="eventlog"
+        hx-get="/debug/state"
+        hx-trigger="every 1s"
+        hx-swap="innerHTML"
+        hx-select="#eventlog-inner"
+    >
+        <div id="eventlog-inner" class="event-log">
+            {{range .RecentEvents}}
+            <div class="ev">
+                <span class="t">{{.Time}}</span><span class="d">{{.Desc}}</span>
+            </div>
+            {{else}}
+            <div style="color: #333; font-size: 0.75rem">no events yet</div>
+            {{end}}
+        </div>
+    </div>
+</div>
+{{end}} {{define "debug-state"}}
+<div class="state-grid">
+    <div class="state-cell">
+        <div class="lbl">Bucket</div>
+        <div class="val gold">{{.Bucket}}</div>
+    </div>
+    <div class="state-cell">
+        <div class="lbl">Mode</div>
+        <div class="val">{{.Mode}}</div>
+    </div>
+    <div class="state-cell">
+        <div class="lbl">Power</div>
+        {{if .PowerOn}}
+        <div class="val green">ON</div>
+        {{else}}
+        <div class="val red">OFF</div>
+        {{end}}
+    </div>
+    <div class="state-cell">
+        <div class="lbl">Volume</div>
+        <div class="val">{{.Volume}}%</div>
+    </div>
+    <div class="state-cell">
+        <div class="lbl">Playing</div>
+        {{if .Playing}}
+        <div class="val green">YES</div>
+        {{else}}
+        <div class="val red">NO</div>
+        {{end}}
+    </div>
+</div>
+<div class="track-line">
+    {{if .TrackName}}{{.TrackName}}{{if .Artists}} &mdash;
+    {{.Artists}}{{end}}{{else}}&mdash;{{end}}
+</div>
+<div id="eventlog-inner" class="event-log">
+    {{range .RecentEvents}}
+    <div class="ev">
+        <span class="t">{{.Time}}</span><span class="d">{{.Desc}}</span>
+    </div>
+    {{else}}
+    <div style="color: #333; font-size: 0.75rem">no events yet</div>
+    {{end}}
+</div>
+{{end}}
