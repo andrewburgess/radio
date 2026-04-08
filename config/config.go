@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type Config struct {
@@ -16,8 +15,6 @@ type Config struct {
 	LibrespotDeviceName string
 	LibrespotCacheDir   string
 	BucketCount         int
-	PodcastWindowDays   int
-	PodcastCronInterval time.Duration
 	SpotifyClientID     string
 	SpotifyClientSecret string
 	SpotifyRedirectURI  string
@@ -89,15 +86,6 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: BUCKET_COUNT: %w", err)
 	}
 
-	cfg.PodcastWindowDays, err = getEnvInt("PODCAST_WINDOW_DAYS", 14)
-	if err != nil {
-		return nil, fmt.Errorf("config: PODCAST_WINDOW_DAYS: %w", err)
-	}
-
-	cfg.PodcastCronInterval, err = getEnvDuration("PODCAST_CRON_INTERVAL", 6*time.Hour)
-	if err != nil {
-		return nil, fmt.Errorf("config: PODCAST_CRON_INTERVAL: %w", err)
-	}
 
 	cfg.SpotifyClientID = os.Getenv("SPOTIFY_CLIENT_ID")
 	if cfg.SpotifyClientID == "" {
@@ -177,14 +165,3 @@ func getEnvFloat(key string, defaultVal float64) (float64, error) {
 	return f, nil
 }
 
-func getEnvDuration(key string, defaultVal time.Duration) (time.Duration, error) {
-	v := os.Getenv(key)
-	if v == "" {
-		return defaultVal, nil
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil {
-		return 0, fmt.Errorf("invalid duration %q", v)
-	}
-	return d, nil
-}

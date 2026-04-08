@@ -159,7 +159,7 @@ func (c *Client) GetCurrentTrack(ctx context.Context) (*Track, error) {
 // GetPlaylistTracks fetches all tracks in a playlist, following pagination.
 // playlistURI may be a full Spotify URI (spotify:playlist:ID) or a bare ID.
 func (c *Client) GetPlaylistTracks(ctx context.Context, playlistURI string) ([]Track, error) {
-	id := spotifyID(playlistURI)
+	id := SpotifyID(playlistURI)
 	if id == "" {
 		return nil, fmt.Errorf("spotify: invalid playlist URI %q", playlistURI)
 	}
@@ -215,7 +215,7 @@ func (c *Client) GetPlaylistTracks(ctx context.Context, playlistURI string) ([]T
 // carry the show name.
 // showURI may be a full Spotify URI (spotify:show:ID) or a bare ID.
 func (c *Client) GetShowEpisodes(ctx context.Context, showURI, showName string, since time.Time) ([]Episode, error) {
-	id := spotifyID(showURI)
+	id := SpotifyID(showURI)
 	if id == "" {
 		return nil, fmt.Errorf("spotify: invalid show URI %q", showURI)
 	}
@@ -343,13 +343,13 @@ func (c *Client) do(req *http.Request, out any) error {
 	return nil
 }
 
-// spotifyID extracts the resource ID from a Spotify URI, a Spotify web URL,
+// SpotifyID extracts the resource ID from a Spotify URI, a Spotify web URL,
 // or a bare ID. Returns an empty string if the input is unrecognisable.
 //
 //   - URI:     "spotify:playlist:4CcJtLqObbg4L5YEXaNrlY"                              → "4CcJtLqObbg4L5YEXaNrlY"
 //   - URL:     "https://open.spotify.com/playlist/4CcJtLqObbg4L5YEXaNrlY?si=..."      → "4CcJtLqObbg4L5YEXaNrlY"
 //   - Bare ID: "4CcJtLqObbg4L5YEXaNrlY"                                               → "4CcJtLqObbg4L5YEXaNrlY"
-func spotifyID(input string) string {
+func SpotifyID(input string) string {
 	// https://open.spotify.com/{type}/{id}?si=...
 	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
 		u, err := url.Parse(input)

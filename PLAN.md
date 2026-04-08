@@ -3,10 +3,10 @@
 A Go + HTMX server/client application that runs on a Raspberry Pi 4 inside a
 retrofitted vintage Zenith radio cabinet. The radio's physical tuning dial (read
 via a TMAG5273 Hall effect sensor over I2C) switches between a fixed number of
-frequency buckets. Each bucket can be assigned a Spotify playlist (music mode)
-or a set of podcast shows (podcast mode). Unassigned buckets play audio static
-to simulate no signal. The AM/FM toggle switches between music and podcast modes
-— both sourced from Spotify. Audio playback is handled by librespot; static
+frequency buckets. Each bucket can be assigned a Spotify playlist — music or
+podcast, both are just playlist URIs. Unassigned buckets play audio static to
+simulate no signal. The AM/FM toggle switches between two sets of station
+mappings (music vs. podcast). Audio playback is handled by librespot; static
 audio is played via a separate ffmpeg/aplay process.
 
 ---
@@ -79,21 +79,16 @@ audio is played via a separate ffmpeg/aplay process.
   via a managed ffmpeg (or aplay) subprocess. When leaving a static bucket, the
   static process is killed and librespot resumes for the new station. A static
   audio file must be bundled with the application.
-- **Podcast mode — show buckets**: Each podcast bucket maps to a curated
-  collection of Spotify show URIs (e.g. "technology" bucket = 3–4 tech shows). A
-  background cron job fetches recent episodes from each show in the collection
-  (episodes published within a configurable window, e.g. last 14 days) and
-  assembles them into a pseudo-playlist ordered by round-robin interleaving
-  across shows. Radio time applies to this pseudo-playlist identically to music
-  mode.
-- **Podcast cron — no-interrupt rule**: The cron job checks whether the radio is
-  currently in podcast mode before refreshing any station's pseudo-playlist. If
-  podcast mode is active, the job reschedules itself and skips the refresh
-  entirely. Refresh runs only when the toggle is in music mode. This is the
-  simplest safe boundary — no per-station tracking needed.
-- **Podcast mode**: The AM/FM toggle signals which set of station mappings to
-  use — music stations vs. podcast stations. Both sets live in the same
-  `stations` table, differentiated by the `mode` column.
+- **Podcast mode**: Podcast buckets are just Spotify playlist URIs — Spotify's
+  "prompted playlists" feature supports podcasts and handles episode refresh on
+  a schedule. The AM/FM toggle signals which set of station mappings to use;
+  both sets live in the same `stations` table, differentiated by the `mode`
+  column. No cron job, no custom episode fetching.
+- **Playlist cache invalidation**: Each cached playlist entry stores the
+  Spotify `snapshot_id`. On station switch, a lightweight metadata fetch checks
+  whether `snapshot_id` has changed; if so, the track list is re-fetched and
+  the cache is updated before computing radio time. This handles both music
+  playlist edits and prompted playlist refreshes transparently.
 
 ---
 
@@ -237,23 +232,26 @@ functional before starting the next.
   `audio.Static.Stop()` + proceed with normal station switch
 - `static/noise.mp3` is stored in Git LFS (tracked via `.gitattributes`)
 
-### Phase 6 — Podcast Scheduler
+### Phase 6 — Playlist Cache & Snapshot Invalidation
 
-- Implement `podcast.Scheduler`: a background goroutine that fires on a
-  configurable interval (e.g. every 6 hours)
-- On each tick:
-    - Check current mode; if podcast mode is active, log skip reason and
-      reschedule — do not refresh
-    - For each podcast bucket, fetch episodes from each assigned show URI
-      published within the configured window (e.g. last 14 days) using
-      `spotify.GetShowEpisodes`
-    - Interleave episodes round-robin across shows in the bucket (show A ep 1,
-      show B ep 1, show C ep 1, show A ep 2, ...)
-    - Write resulting pseudo-playlist (ordered list of episode URIs + durations)
-      to `podcast_playlists` table
-    - Invalidate playlist cache for affected buckets
-- Pseudo-playlists are used identically to music playlists for radio time
-  calculation
+Podcast buckets use Spotify's prompted playlists feature, so no custom episode
+fetching or cron job is needed. Both music and podcast stations are plain
+playlist URIs. This phase wires up cache invalidation so radio time always
+reflects the current playlist contents.
+
+- Add `spotify.GetPlaylistSnapshot(ctx, playlistURI) (string, error)` — a
+  lightweight metadata fetch (`?fields=snapshot_id`) to check for changes
+  without fetching the full track list
+- Implement a file-based playlist cache (JSON, similar to `FileTokenStore`)
+  storing `{ snapshot_id, tracks[], total_duration_ms }` per playlist URI;
+  migrated to SQLite in Phase 9
+- On station switch:
+    1. Fetch `snapshot_id` from Spotify
+    2. Compare against cached value; if unchanged, use cached tracks
+    3. If changed (or no cache entry): fetch full track list, update cache,
+       then compute radio time
+- Add a `/debug/cache` endpoint to inspect current cache state (removed in
+  Phase 10)
 
 ### Phase 7 — SSE Endpoint
 
@@ -270,10 +268,9 @@ functional before starting the next.
 - **Now playing page** (`/`): displays current track info and GPIO state,
   updated via SSE; shows "no signal" state when static is playing
 - **Music config page** (`/config/music`): grid of bucket slots; each slot
-  accepts a Spotify playlist URI or link; empty slots labeled "no signal"
+  accepts a Spotify playlist URI or URL; empty slots labeled "no signal"
 - **Podcast config page** (`/config/podcast`): grid of bucket slots; each slot
-  manages a list of Spotify show URIs (add/remove shows); displays last refresh
-  time and episode count per bucket
+  accepts a Spotify prompted playlist URI or URL; empty slots labeled "no signal"
 - Use HTMX `hx-get`/`hx-post` for all interactions — no full page reloads
 - Use HTMX SSE extension for live updates on the now-playing page
 - Keep CSS minimal — functional over styled, dark theme preferred
@@ -287,35 +284,14 @@ functional before starting the next.
       id INTEGER PRIMARY KEY,
       angle_bucket INTEGER NOT NULL,
       mode TEXT NOT NULL CHECK(mode IN ('music', 'podcast')),
+      playlist_uri TEXT,                   -- NULL = unassigned (plays static)
       label TEXT,
       UNIQUE(angle_bucket, mode)
     );
 
-    -- Music mode: one playlist URI per station
-    CREATE TABLE music_stations (
-      station_id INTEGER PRIMARY KEY REFERENCES stations(id),
-      playlist_uri TEXT NOT NULL
-    );
-
-    -- Podcast mode: one or more show URIs per station
-    CREATE TABLE podcast_shows (
-      id INTEGER PRIMARY KEY,
-      station_id INTEGER NOT NULL REFERENCES stations(id),
-      show_uri TEXT NOT NULL,
-      display_name TEXT
-    );
-
-    -- Materialized pseudo-playlist built by cron; rebuilt on each refresh
-    CREATE TABLE podcast_playlists (
-      station_id INTEGER NOT NULL REFERENCES stations(id),
-      position INTEGER NOT NULL,           -- ordering index
-      episode_uri TEXT NOT NULL,
-      duration_ms INTEGER NOT NULL,
-      PRIMARY KEY (station_id, position)
-    );
-
     CREATE TABLE playlist_cache (
       playlist_uri TEXT PRIMARY KEY,
+      snapshot_id TEXT NOT NULL,
       tracks_json TEXT NOT NULL,           -- JSON array of {uri, duration_ms}
       total_duration_ms INTEGER NOT NULL,
       cached_at INTEGER NOT NULL
@@ -330,19 +306,16 @@ functional before starting the next.
     ```
 
 - Implement store layer:
-    - `GetStation(bucket, mode)`, `SetStation(...)`,
-      `DeleteStation(bucket, mode)`, `ListStations(mode)`
-    - `SetMusicPlaylist(stationID, uri)`, `GetMusicPlaylist(stationID)`
-    - `AddPodcastShow(stationID, showURI)`, `RemovePodcastShow(id)`,
-      `ListPodcastShows(stationID)`
-    - `SetPodcastPlaylist(stationID, episodes)`, `GetPodcastPlaylist(stationID)`
+    - `GetStation(bucket, mode) (*Station, error)` — returns nil if unassigned
+    - `SetStation(bucket, mode, playlistURI, label) error`
+    - `DeleteStation(bucket, mode) error`
+    - `ListStations(mode) ([]Station, error)`
+    - `GetPlaylistCache(uri) (*PlaylistCache, error)`
+    - `SetPlaylistCache(uri, snapshotID, tracks, totalMs) error`
 - Wire config UI to store
 - Wire station-switch logic: on `DialMoved` or `ToggleSwitched`:
-    - If bucket is unassigned → static audio
-    - If music mode → look up `music_stations`, compute radio time, call
-      `spotify.PlayAt`
-    - If podcast mode → look up `podcast_playlists`, compute radio time, call
-      `spotify.PlayAt`
+    - If station has no `playlist_uri` (or no station row) → static audio
+    - Otherwise → check snapshot, compute radio time, call `spotify.Play`
 
 ### Phase 10 — Cleanup & Hardening
 
@@ -385,23 +358,17 @@ and make the binary production-ready.
   at startup. The right number depends on physical testing with the TMAG5273 —
   how many distinct positions the dial can reliably land on without ambiguity.
   Start with a conservative number (e.g. 8–12) and tune from there.
-- **Station assignment UX**: Music stations are assigned by pasting a Spotify
-  playlist URI. Podcast stations are assigned by adding show URIs to a bucket's
-  collection. Both managed via `/config` in the browser UI — no preset-save dial
-  interaction needed since bucket count is fixed.
+- **Station assignment UX**: Both music and podcast stations are assigned by
+  pasting a Spotify playlist URI or URL. Podcast buckets use Spotify's prompted
+  playlists feature for automatic episode refresh. Both managed via `/config`
+  in the browser UI — no preset-save dial interaction needed since bucket count
+  is fixed.
 - **DAC/Amp HAT**: Blocked on confirming driver impedance (4Ω vs 8Ω).
 - **librespot version**: v0.8.0. Events delivered via `--onevent` env vars; full
   event reference at https://github.com/librespot-org/librespot/wiki/Events.
 - **Static audio file**: A suitable looping static/noise audio file needs to be
   sourced or generated and bundled with the repo. Format should be compatible
   with aplay (WAV) or ffmpeg (anything).
-- **Podcast cron interval**: Configurable; 6 hours is a reasonable default.
-  Should also run once at startup to ensure pseudo-playlists are populated
-  before the radio is used.
-- **Empty podcast bucket behavior**: If a podcast bucket has shows assigned but
-  the cron finds no episodes within the recency window, the pseudo-playlist is
-  left empty. The station-switch logic treats an empty pseudo-playlist
-  identically to an unassigned bucket — falls back to static audio.
 
 ---
 

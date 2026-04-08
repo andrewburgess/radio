@@ -128,8 +128,6 @@ Do not create files outside this structure without a good reason.
 | `LIBRESPOT_DEVICE_NAME` | Spotify Connect device name                               | `Zenith Radio`     |
 | `LIBRESPOT_CACHE_DIR`   | Directory for librespot credential/file cache             | `librespot-cache`  |
 | `BUCKET_COUNT`          | Number of dial stations                                   | `12`               |
-| `PODCAST_WINDOW_DAYS`   | Episode recency window for podcast cron                   | `14`               |
-| `PODCAST_CRON_INTERVAL` | How often the podcast cron runs (e.g. `6h`)               | `6h`               |
 | `STATIC_AUDIO_BIN`      | Binary for looping static audio (`ffmpeg`/`aplay`)        | `ffmpeg`           |
 | `STATIC_AUDIO_FILE`     | Path to the static noise audio file                       | `static/noise.mp3` |
 | `STATIC_AUDIO_SINK`     | ALSA output device for ffmpeg (e.g. `hw:0`); empty = auto | `""`               |
