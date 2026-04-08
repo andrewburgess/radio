@@ -59,6 +59,9 @@ starting the next.
   with `//go:build !pi` that satisfies the same interface with no-op or
   simulated behaviour. Build for the Pi with `go build -tags pi`; dev builds
   use `go build` (no tag) and get the mocks automatically.
+- **Pi dependencies**: `periph.io/x/periph` (and sub-packages) are only pulled
+  in when building with `-tags pi`. Run `go get periph.io/x/periph` on the Pi
+  before the first `go build -tags pi`.
 
 ## Key Dependencies
 

@@ -15,6 +15,8 @@ const (
 	KindToggleSwitched           // AM/FM toggle changed mode
 	KindStaticStarted            // static audio began playing
 	KindStaticStopped            // static audio stopped
+	KindPowerChanged             // radio turned on or off via volume knob switch
+	KindVolumeChanged            // volume pot position changed (0–100)
 )
 
 // Mode represents the AM/FM toggle position.
@@ -47,6 +49,12 @@ type Event struct {
 
 	// KindToggleSwitched
 	Mode Mode
+
+	// KindPowerChanged
+	PowerOn bool
+
+	// KindVolumeChanged (0–100)
+	Volume int
 }
 
 // Bus is a simple fan-out pub/sub backed by Go channels.

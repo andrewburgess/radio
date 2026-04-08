@@ -8,6 +8,7 @@ import (
 
 	"andrewburgess.io/radio/config"
 	"andrewburgess.io/radio/events"
+	"andrewburgess.io/radio/hardware"
 	"andrewburgess.io/radio/librespot"
 	"andrewburgess.io/radio/server"
 	"andrewburgess.io/radio/spotify"
@@ -63,6 +64,20 @@ func main() {
 
 	bus := events.New()
 	go forwardLibrespotEvents(lp.Events, bus)
+
+	watchers := []hardware.Watcher{
+		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialMinAngle, cfg.DialMaxAngle),
+		hardware.NewToggle(bus, cfg.ToggleGPIOPin),
+		hardware.NewPower(bus, cfg.PowerGPIOPin),
+		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaMixerControl),
+	}
+	for _, w := range watchers {
+		if err := w.Start(); err != nil {
+			slog.Error("failed to start hardware watcher", "err", err)
+			os.Exit(1)
+		}
+		defer w.Stop()
+	}
 
 	srv, err := server.New(cfg, spotifyClient, bus)
 	if err != nil {

@@ -10,19 +10,30 @@ import (
 )
 
 type Config struct {
-	Port                  string
-	DBPath                string
-	LibrespotBin          string
-	LibrespotDeviceName   string
-	LibrespotCacheDir     string
-	BucketCount           int
-	PodcastWindowDays     int
-	PodcastCronInterval   time.Duration
-	SpotifyClientID       string
-	SpotifyClientSecret   string
-	SpotifyRedirectURI    string
-	SpotifyTokenFile      string
-	SpotifyTestPlaylist   string
+	Port                string
+	DBPath              string
+	LibrespotBin        string
+	LibrespotDeviceName string
+	LibrespotCacheDir   string
+	BucketCount         int
+	PodcastWindowDays   int
+	PodcastCronInterval time.Duration
+	SpotifyClientID     string
+	SpotifyClientSecret string
+	SpotifyRedirectURI  string
+	SpotifyTokenFile    string
+	SpotifyTestPlaylist string
+
+	// Hardware
+	DialI2CBus       string
+	DialI2CAddr      string
+	DialMinAngle     float64
+	DialMaxAngle     float64
+	ToggleGPIOPin    string
+	PowerGPIOPin     string
+	VolumeSPIDev     string
+	VolumeSPIChannel int
+	AlsaMixerControl string
 }
 
 func loadDotEnv() {
@@ -101,6 +112,27 @@ func Load() (*Config, error) {
 	cfg.SpotifyTokenFile    = getEnv("SPOTIFY_TOKEN_FILE", "spotify-tokens.json")
 	cfg.SpotifyTestPlaylist = os.Getenv("SPOTIFY_TEST_PLAYLIST")
 
+	// Hardware
+	cfg.DialI2CBus      = getEnv("DIAL_I2C_BUS", "I2C1")
+	cfg.DialI2CAddr     = getEnv("DIAL_I2C_ADDR", "0x22")
+	cfg.ToggleGPIOPin   = getEnv("TOGGLE_GPIO_PIN", "GPIO17")
+	cfg.PowerGPIOPin    = getEnv("POWER_GPIO_PIN", "GPIO27")
+	cfg.VolumeSPIDev    = getEnv("VOLUME_SPI_DEV", "SPI0.0")
+	cfg.AlsaMixerControl = getEnv("ALSA_MIXER_CONTROL", "Master")
+
+	cfg.DialMinAngle, err = getEnvFloat("DIAL_MIN_ANGLE", 0)
+	if err != nil {
+		return nil, fmt.Errorf("config: DIAL_MIN_ANGLE: %w", err)
+	}
+	cfg.DialMaxAngle, err = getEnvFloat("DIAL_MAX_ANGLE", 270)
+	if err != nil {
+		return nil, fmt.Errorf("config: DIAL_MAX_ANGLE: %w", err)
+	}
+	cfg.VolumeSPIChannel, err = getEnvInt("VOLUME_SPI_CHANNEL", 0)
+	if err != nil {
+		return nil, fmt.Errorf("config: VOLUME_SPI_CHANNEL: %w", err)
+	}
+
 	return cfg, nil
 }
 
@@ -121,6 +153,18 @@ func getEnvInt(key string, defaultVal int) (int, error) {
 		return 0, fmt.Errorf("invalid integer %q", v)
 	}
 	return n, nil
+}
+
+func getEnvFloat(key string, defaultVal float64) (float64, error) {
+	v := os.Getenv(key)
+	if v == "" {
+		return defaultVal, nil
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float %q", v)
+	}
+	return f, nil
 }
 
 func getEnvDuration(key string, defaultVal time.Duration) (time.Duration, error) {
