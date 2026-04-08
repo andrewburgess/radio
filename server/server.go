@@ -23,10 +23,12 @@ type Server struct {
 	bus           *events.Bus
 	state         *radioState
 	broker        *sseBroker
+	musicConfig   *MusicConfig
+	podcastConfig *PodcastConfig
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, playlistCache spotify.PlaylistCacheStore, bus *events.Bus) (*Server, error) {
-	pages := []string{"index", "debug"}
+	pages := []string{"index", "debug", "music", "podcast"}
 	templates := make(map[string]*template.Template, len(pages))
 	for _, page := range pages {
 		tmpl, err := template.ParseFS(templateFS,
@@ -40,14 +42,16 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, playlistCache spotif
 	}
 
 	s := &Server{
-		cfg:           cfg,
-		mux:           http.NewServeMux(),
-		templates:     templates,
-		spotify:       spotifyClient,
-		playlistCache: playlistCache,
-		bus:           bus,
-		state:         newRadioState(),
-		broker:        newSSEBroker(),
+		cfg:            cfg,
+		mux:            http.NewServeMux(),
+		templates:      templates,
+		spotify:        spotifyClient,
+		playlistCache:  playlistCache,
+		bus:            bus,
+		state:          newRadioState(),
+		broker:         newSSEBroker(),
+		musicConfig:    NewMusicConfig("music-config.json", cfg.BucketCount),
+		podcastConfig:  NewPodcastConfig("podcast-config.json", cfg.BucketCount),
 	}
 
 	go s.runStateUpdater()
@@ -60,6 +64,10 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /auth", s.handleAuth)
 	s.mux.HandleFunc("GET /auth/callback", s.handleAuthCallback)
+	s.mux.HandleFunc("GET /config/music", s.handleMusicConfig)
+	s.mux.HandleFunc("POST /config/music", s.handleMusicConfigSave)
+	s.mux.HandleFunc("GET /config/podcast", s.handlePodcastConfig)
+	s.mux.HandleFunc("POST /config/podcast", s.handlePodcastConfigSave)
 	s.mux.HandleFunc("GET /debug", s.handleDebug)
 	s.mux.HandleFunc("GET /debug/state", s.handleDebugState)
 	s.mux.HandleFunc("POST /debug/simulate", s.handleDebugSimulate)

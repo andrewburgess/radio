@@ -1,0 +1,136 @@
+{{define "content"}}
+<style>
+    .cfg-header {
+        margin-bottom: 2rem;
+    }
+    .cfg-header h2 {
+        color: #c8a84b;
+        font-size: 1.1rem;
+        letter-spacing: 0.15em;
+        margin-bottom: 0.3rem;
+    }
+    .cfg-subtext {
+        color: #555;
+        font-size: 0.8rem;
+    }
+    .cfg-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .cfg-bucket {
+        background: #111;
+        border: 1px solid #222;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+    }
+    .cfg-bucket-image-container {
+        width: 100%;
+        aspect-ratio: 1;
+        background: #0d0d0d;
+        border: 1px solid #222;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    .cfg-bucket-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .cfg-bucket-image-empty {
+        font-size: 2rem;
+        color: #333;
+    }
+    .cfg-bucket-label {
+        color: #444;
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+    .cfg-bucket-input {
+        width: 100%;
+        background: #0d0d0d;
+        border: 1px solid #333;
+        color: #ccc;
+        padding: 0.6rem 0.8rem;
+        font-family: monospace;
+        font-size: 0.75rem;
+        box-sizing: border-box;
+        margin-bottom: 0.5rem;
+    }
+    .cfg-bucket-input::placeholder {
+        color: #333;
+    }
+    .cfg-bucket-input:focus {
+        outline: none;
+        border-color: #c8a84b;
+        color: #e0e0e0;
+    }
+    .cfg-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+    .cfg-btn {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #aaa;
+        padding: 0.5rem 1.2rem;
+        font-family: monospace;
+        font-size: 0.85rem;
+        cursor: pointer;
+        letter-spacing: 0.05em;
+    }
+    .cfg-btn:hover {
+        border-color: #c8a84b;
+        color: #e0e0e0;
+    }
+    .cfg-btn.primary {
+        background: #1a1a1a;
+        border-color: #c8a84b;
+        color: #c8a84b;
+    }
+    .cfg-btn.primary:hover {
+        background: #222;
+    }
+</style>
+
+<div class="cfg-header">
+    <h2>PODCAST CONFIGURATION</h2>
+    <p class="cfg-subtext">Assign a Spotify playlist URI or URL to each station bucket. Leave blank for static/no signal. Use "prompted playlists" for automatic episode refresh.</p>
+</div>
+
+<form method="post">
+    <div class="cfg-grid">
+        {{range .Buckets}}
+        <div class="cfg-bucket">
+            <div class="cfg-bucket-image-container">
+                {{if .ImageURL}}
+                <img src="{{.ImageURL}}" alt="Playlist cover" />
+                {{else}}
+                <div class="cfg-bucket-image-empty">🎙️</div>
+                {{end}}
+            </div>
+            <div class="cfg-bucket-label">Station {{.Index}}</div>
+            <input
+                type="text"
+                class="cfg-bucket-input"
+                name="bucket_{{.Index}}"
+                value="{{.URI}}"
+                placeholder="spotify:playlist:... or https://open.spotify.com/playlist/..."
+            />
+        </div>
+        {{end}}
+    </div>
+
+    <div class="cfg-actions">
+        <button type="submit" class="cfg-btn primary">Save</button>
+        <a href="/" class="cfg-btn" style="text-decoration:none; display:flex; align-items:center;">Back</a>
+    </div>
+</form>
+{{end}}

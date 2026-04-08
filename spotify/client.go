@@ -279,6 +279,29 @@ func (c *Client) GetShowEpisodes(ctx context.Context, showURI, showName string, 
 	return episodes, nil
 }
 
+// GetPlaylistImage returns the URL of the cover image for a playlist,
+// preferring the largest available image. Returns an empty string if the
+// playlist has no images.
+// playlistURI may be a full Spotify URI (spotify:playlist:ID) or a bare ID.
+func (c *Client) GetPlaylistImage(ctx context.Context, playlistURI string) (string, error) {
+	id := SpotifyID(playlistURI)
+	if id == "" {
+		return "", fmt.Errorf("spotify: invalid playlist URI %q", playlistURI)
+	}
+	var resp struct {
+		Images []struct {
+			URL string `json:"url"`
+		} `json:"images"`
+	}
+	if err := c.get(ctx, "/playlists/"+id+"?fields=images", &resp); err != nil {
+		return "", fmt.Errorf("spotify: get playlist image: %w", err)
+	}
+	if len(resp.Images) > 0 {
+		return resp.Images[0].URL, nil
+	}
+	return "", nil
+}
+
 // get makes a GET request to a path relative to apiBase and decodes the
 // response into out.
 func (c *Client) get(ctx context.Context, path string, out any) error {
