@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -95,14 +96,71 @@ func New(cfg Config) *Process {
 	}
 }
 
-// Start opens the event socket, then launches the librespot subprocess in the
-// background. It returns immediately; use Stop to shut down.
+// Start kills any leftover librespot process from a previous run, opens the
+// event listener, then launches librespot in the background.
+// It returns immediately; use Stop to shut down.
 func (p *Process) Start() error {
+	p.killLeftover()
 	if err := p.startListener(); err != nil {
 		return fmt.Errorf("librespot: event socket: %w", err)
 	}
 	go p.run()
 	return nil
+}
+
+// pidFilePath returns the path used to record the running librespot PID.
+func (p *Process) pidFilePath() string {
+	return filepath.Join(p.cfg.CacheDir, "librespot.pid")
+}
+
+// killLeftover reads the pidfile from a previous run and kills that process if
+// it is still running. Errors are logged but not returned — a stale or missing
+// pidfile is not fatal.
+func (p *Process) killLeftover() {
+	path := p.pidFilePath()
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return
+	}
+	if err != nil {
+		slog.Warn("librespot: read pidfile", "err", err)
+		return
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		slog.Warn("librespot: parse pidfile", "err", err)
+		os.Remove(path)
+		return
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		// On Windows FindProcess fails if the process doesn't exist.
+		os.Remove(path)
+		return
+	}
+	if err := proc.Kill(); err != nil {
+		slog.Warn("librespot: kill leftover process", "pid", pid, "err", err)
+	} else {
+		slog.Info("librespot: killed leftover process", "pid", pid)
+	}
+	os.Remove(path)
+}
+
+// writePidFile records pid so a future startup can clean it up if needed.
+func (p *Process) writePidFile(pid int) {
+	path := p.pidFilePath()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		slog.Warn("librespot: create cache dir for pidfile", "err", err)
+		return
+	}
+	if err := os.WriteFile(path, []byte(strconv.Itoa(pid)), 0644); err != nil {
+		slog.Warn("librespot: write pidfile", "err", err)
+	}
+}
+
+// removePidFile deletes the pidfile when librespot exits cleanly.
+func (p *Process) removePidFile() {
+	os.Remove(p.pidFilePath())
 }
 
 // Stop signals librespot to shut down and closes the event socket.
@@ -260,6 +318,7 @@ func (p *Process) launch() error {
 		return fmt.Errorf("librespot: start: %w", err)
 	}
 	slog.Info("librespot started", "pid", cmd.Process.Pid, "bin", p.cfg.BinPath)
+	p.writePidFile(cmd.Process.Pid)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -274,11 +333,13 @@ func (p *Process) launch() error {
 	wg.Wait()
 
 	if err := cmd.Wait(); err != nil {
+		p.removePidFile()
 		if ctx.Err() != nil {
 			return nil
 		}
 		return fmt.Errorf("librespot: %w", err)
 	}
+	p.removePidFile()
 	return nil
 }
 
