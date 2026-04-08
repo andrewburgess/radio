@@ -76,7 +76,7 @@ type Config struct {
 // Process manages the librespot subprocess lifecycle.
 type Process struct {
 	cfg      Config
-	sockPath string
+	eventAddr string // TCP address the event listener is bound to
 	Events   chan Event
 
 	mu       sync.Mutex
@@ -88,12 +88,10 @@ type Process struct {
 
 // New creates a Process. Call Start to launch librespot.
 func New(cfg Config) *Process {
-	sockPath := filepath.Join(os.TempDir(), fmt.Sprintf("radio-events-%d.sock", os.Getpid()))
 	return &Process{
-		cfg:      cfg,
-		sockPath: sockPath,
-		Events:   make(chan Event, 16),
-		stopCh:   make(chan struct{}),
+		cfg:    cfg,
+		Events: make(chan Event, 16),
+		stopCh: make(chan struct{}),
 	}
 }
 
@@ -125,30 +123,26 @@ func (p *Process) Stop() {
 	}
 }
 
-// startListener opens the Unix domain socket that event forwarder subprocesses
-// connect to for each librespot event.
+// startListener opens a TCP loopback listener that event forwarder subprocesses
+// connect to for each librespot event. The OS assigns an ephemeral port.
 func (p *Process) startListener() error {
-	// Remove any stale socket from a previous run.
-	os.Remove(p.sockPath)
-
-	ln, err := net.Listen("unix", p.sockPath)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		return err
 	}
 
 	p.mu.Lock()
 	p.listener = ln
+	p.eventAddr = ln.Addr().String()
 	p.mu.Unlock()
 
 	go p.acceptEvents(ln)
 	return nil
 }
 
-// acceptEvents is the event socket accept loop; runs until Stop closes the
+// acceptEvents is the event listener accept loop; runs until Stop closes the
 // listener.
 func (p *Process) acceptEvents(ln net.Listener) {
-	defer os.Remove(p.sockPath)
-
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -249,9 +243,9 @@ func (p *Process) launch() error {
 		"--onevent", selfExe,
 	)
 
-	// Inherit the current environment and add the socket path so that event
+	// Inherit the current environment and add the TCP address so that event
 	// forwarder subprocesses know where to connect.
-	cmd.Env = append(os.Environ(), "RADIO_EVENT_SOCKET="+p.sockPath)
+	cmd.Env = append(os.Environ(), "RADIO_EVENT_ADDR="+p.eventAddr)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -363,9 +357,9 @@ func parseInt(s string) int {
 // Detection: librespot always sets PLAYER_EVENT before invoking the handler,
 // so main calls this when that variable is present.
 func RunEventForwarder() {
-	sockPath := os.Getenv("RADIO_EVENT_SOCKET")
-	if sockPath == "" {
-		fmt.Fprintln(os.Stderr, "radio event forwarder: RADIO_EVENT_SOCKET not set")
+	addr := os.Getenv("RADIO_EVENT_ADDR")
+	if addr == "" {
+		fmt.Fprintln(os.Stderr, "radio event forwarder: RADIO_EVENT_ADDR not set")
 		os.Exit(1)
 	}
 
@@ -394,7 +388,7 @@ func RunEventForwarder() {
 		os.Exit(1)
 	}
 
-	conn, err := net.Dial("unix", sockPath)
+	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "radio event forwarder: dial: %v\n", err)
 		os.Exit(1)

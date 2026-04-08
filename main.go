@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"andrewburgess.io/radio/config"
+	"andrewburgess.io/radio/events"
 	"andrewburgess.io/radio/librespot"
 	"andrewburgess.io/radio/server"
 	"andrewburgess.io/radio/spotify"
@@ -60,7 +61,10 @@ func main() {
 	}
 	defer lp.Stop()
 
-	srv, err := server.New(cfg, spotifyClient)
+	bus := events.New()
+	go forwardLibrespotEvents(lp.Events, bus)
+
+	srv, err := server.New(cfg, spotifyClient, bus)
 	if err != nil {
 		slog.Error("failed to create server", "err", err)
 		os.Exit(1)
@@ -80,3 +84,36 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// forwardLibrespotEvents translates librespot events into bus events.
+func forwardLibrespotEvents(in <-chan librespot.Event, bus *events.Bus) {
+	for e := range in {
+		switch e.Type {
+		case librespot.EventTrackChanged:
+			bus.Publish(events.Event{
+				Kind:       events.KindTrackChanged,
+				TrackURI:   e.URI,
+				TrackName:  e.Name,
+				Artists:    e.Artists,
+				Album:      e.Album,
+				ShowName:   e.ShowName,
+				DurationMs: e.DurationMs,
+			})
+		case librespot.EventPlaying:
+			bus.Publish(events.Event{
+				Kind:       events.KindPlaybackStateChanged,
+				Playing:    true,
+				PositionMs: e.PositionMs,
+				TrackURI:   e.TrackID,
+			})
+		case librespot.EventPaused, librespot.EventStopped:
+			bus.Publish(events.Event{
+				Kind:       events.KindPlaybackStateChanged,
+				Playing:    false,
+				PositionMs: e.PositionMs,
+				TrackURI:   e.TrackID,
+			})
+		}
+	}
+}
+

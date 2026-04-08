@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"andrewburgess.io/radio/config"
+	"andrewburgess.io/radio/events"
 	"andrewburgess.io/radio/spotify"
 )
 
@@ -18,9 +19,10 @@ type Server struct {
 	mux       *http.ServeMux
 	templates *template.Template
 	spotify   *spotify.Client
+	bus       *events.Bus
 }
 
-func New(cfg *config.Config, spotifyClient *spotify.Client) (*Server, error) {
+func New(cfg *config.Config, spotifyClient *spotify.Client, bus *events.Bus) (*Server, error) {
 	tmpl, err := template.ParseFS(templateFS, "templates/*.html")
 	if err != nil {
 		return nil, err
@@ -31,6 +33,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client) (*Server, error) {
 		mux:       http.NewServeMux(),
 		templates: tmpl,
 		spotify:   spotifyClient,
+		bus:       bus,
 	}
 
 	s.registerRoutes()
