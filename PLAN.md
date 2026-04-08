@@ -402,3 +402,61 @@ and make the binary production-ready.
   the cron finds no episodes within the recency window, the pseudo-playlist is
   left empty. The station-switch logic treats an empty pseudo-playlist
   identically to an unassigned bucket — falls back to static audio.
+
+---
+
+## Gold Plating
+
+Features that would be cool but are not critical to the core implementation.
+Keep these in mind when making architectural decisions — don't actively design
+for them, but don't close the door either if the cost is low.
+
+### AI Voice Interstitials
+
+Between tracks, a TTS system generates a short station ID clip ("You're
+listening to 99.1 Rock Radio") and blends it into the audio stream seamlessly.
+
+- **TTS options**: ElevenLabs / Google Cloud TTS / OpenAI TTS for cloud; Piper
+  TTS for fully offline on-device generation (runs well on Pi 4)
+- **Trigger**: subscribe to `end_of_track` events on the bus; inject
+  probabilistically (e.g. 1 in 4 track transitions)
+- **Requires ALSA loopback mixing** (see below) — a pause-and-resume approach
+  would break the stateless radio time model since wall clock keeps advancing
+  while librespot is paused
+- Generated clips should be cached to disk since station names rarely change
+
+### Analog Tuning Feel — Static Bleed at Bucket Boundaries
+
+Rather than hard-snapping to a bucket, the audio mix reflects how close the
+dial is to the center of a bucket. At dead center: pure music. Drifting toward
+a boundary: static bleeds in. At the midpoint between two buckets: mostly
+static — like a real analog tuner that needs to be precisely placed.
+
+- **Requires ALSA loopback mixing** (see below)
+- **Requires raw angle events from the dial watcher** in addition to the
+  settled-bucket events it currently emits — the mixer needs a continuous
+  stream of angle readings to update the mix ratio in real time
+- Mix ratio curve TBD from experimentation — linear or sigmoid between bucket
+  center and boundary
+
+### ALSA Loopback Mixing (shared prerequisite)
+
+Both gold plating features above require routing audio through a virtual ALSA
+loopback rather than directly to the hardware output:
+
+```
+librespot  →  snd-aloop (virtual device)  ─┐
+                                            ├─ Go mixer → hw:0 (real output)
+TTS clip / static bleed  ───────────────── ┘
+```
+
+- Load `snd-aloop` kernel module on the Pi (add to `/etc/modules`)
+- Configure librespot to output to the loopback device rather than `hw:0`
+  directly — the `STATIC_AUDIO_SINK` / librespot output config should keep
+  this in mind; avoid hardcoding `hw:0` in ways that are hard to reroute later
+- The Go mixer process reads PCM frames from the loopback, applies per-frame
+  gain curves, and writes to the real output device; a simple custom Go process
+  (using `oto` or raw ALSA writes) gives more control than `ffmpeg amix` for
+  dynamic ratio changes
+- The event bus architecture already supports this: the mixer goroutine
+  subscribes to dial angle events and adjusts mix ratios in real time
