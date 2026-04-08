@@ -24,15 +24,19 @@ type eventEntry struct {
 // bus. It is updated by the server's bus subscriber goroutine and read by the
 // debug and (later) SSE handlers.
 type radioState struct {
-	mu           sync.RWMutex
-	bucket       int
-	mode         events.Mode
-	powerOn      bool
-	volume       int
-	playing      bool
-	trackName    string
-	artists      string
-	recentEvents []eventEntry
+	mu            sync.RWMutex
+	bucket        int
+	mode          events.Mode
+	powerOn       bool
+	volume        int
+	playing       bool
+	staticPlaying bool
+	trackName     string
+	artists       string
+	showName      string
+	trackURI      string
+	album         string
+	recentEvents  []eventEntry
 }
 
 func newRadioState() *radioState {
@@ -43,15 +47,20 @@ func newRadioState() *radioState {
 	}
 }
 
-// stateSnapshot is a lock-free copy of radioState used for template rendering.
+// stateSnapshot is a lock-free copy of radioState used for template rendering
+// and SSE initial snapshots.
 type stateSnapshot struct {
 	Bucket         int
 	Mode           events.Mode
 	PowerOn        bool
 	Volume         int
 	Playing        bool
+	StaticPlaying  bool
 	TrackName      string
 	Artists        string
+	ShowName       string
+	TrackURI       string
+	Album          string
 	RecentEvents   []eventEntry
 	BucketMaxIndex int
 }
@@ -67,8 +76,12 @@ func (rs *radioState) snapshot(bucketCount int) stateSnapshot {
 		PowerOn:        rs.powerOn,
 		Volume:         rs.volume,
 		Playing:        rs.playing,
+		StaticPlaying:  rs.staticPlaying,
 		TrackName:      rs.trackName,
 		Artists:        rs.artists,
+		ShowName:       rs.showName,
+		TrackURI:       rs.trackURI,
+		Album:          rs.album,
 		RecentEvents:   ev,
 		BucketMaxIndex: bucketCount - 1,
 	}
@@ -95,6 +108,9 @@ func (rs *radioState) update(e events.Event) {
 	case events.KindTrackChanged:
 		rs.trackName = e.TrackName
 		rs.artists = e.Artists
+		rs.showName = e.ShowName
+		rs.trackURI = e.TrackURI
+		rs.album = e.Album
 		desc = fmt.Sprintf("track_changed: %q — %s", e.TrackName, e.Artists)
 	case events.KindPlaybackStateChanged:
 		rs.playing = e.Playing
@@ -104,8 +120,10 @@ func (rs *radioState) update(e events.Event) {
 			desc = "playback: paused"
 		}
 	case events.KindStaticStarted:
+		rs.staticPlaying = true
 		desc = "static: started"
 	case events.KindStaticStopped:
+		rs.staticPlaying = false
 		desc = "static: stopped"
 	default:
 		return

@@ -22,6 +22,7 @@ type Server struct {
 	playlistCache spotify.PlaylistCacheStore
 	bus           *events.Bus
 	state         *radioState
+	broker        *sseBroker
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, playlistCache spotify.PlaylistCacheStore, bus *events.Bus) (*Server, error) {
@@ -46,9 +47,11 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, playlistCache spotif
 		playlistCache: playlistCache,
 		bus:           bus,
 		state:         newRadioState(),
+		broker:        newSSEBroker(),
 	}
 
 	go s.runStateUpdater()
+	go s.runSSEPublisher()
 	s.registerRoutes()
 	return s, nil
 }
@@ -62,6 +65,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /debug/simulate", s.handleDebugSimulate)
 	s.mux.HandleFunc("GET /debug/play", s.handleDebugPlay)
 	s.mux.HandleFunc("GET /debug/cache", s.handleDebugCache)
+	s.mux.HandleFunc("GET /events", s.handleSSE)
 }
 
 // render executes the named template from the named page's template set.
