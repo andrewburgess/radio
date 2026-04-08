@@ -84,11 +84,11 @@ audio is played via a separate ffmpeg/aplay process.
   a schedule. The AM/FM toggle signals which set of station mappings to use;
   both sets live in the same `stations` table, differentiated by the `mode`
   column. No cron job, no custom episode fetching.
-- **Playlist cache invalidation**: Each cached playlist entry stores the
-  Spotify `snapshot_id`. On station switch, a lightweight metadata fetch checks
-  whether `snapshot_id` has changed; if so, the track list is re-fetched and
-  the cache is updated before computing radio time. This handles both music
-  playlist edits and prompted playlist refreshes transparently.
+- **Playlist cache invalidation**: Each cached playlist entry stores the Spotify
+  `snapshot_id`. On station switch, a lightweight metadata fetch checks whether
+  `snapshot_id` has changed; if so, the track list is re-fetched and the cache
+  is updated before computing radio time. This handles both music playlist edits
+  and prompted playlist refreshes transparently.
 
 ---
 
@@ -248,8 +248,8 @@ reflects the current playlist contents.
 - On station switch:
     1. Fetch `snapshot_id` from Spotify
     2. Compare against cached value; if unchanged, use cached tracks
-    3. If changed (or no cache entry): fetch full track list, update cache,
-       then compute radio time
+    3. If changed (or no cache entry): fetch full track list, update cache, then
+       compute radio time
 - Add a `/debug/cache` endpoint to inspect current cache state (removed in
   Phase 10)
 
@@ -270,7 +270,8 @@ reflects the current playlist contents.
 - **Music config page** (`/config/music`): grid of bucket slots; each slot
   accepts a Spotify playlist URI or URL; empty slots labeled "no signal"
 - **Podcast config page** (`/config/podcast`): grid of bucket slots; each slot
-  accepts a Spotify prompted playlist URI or URL; empty slots labeled "no signal"
+  accepts a Spotify prompted playlist URI or URL; empty slots labeled "no
+  signal"
 - Use HTMX `hx-get`/`hx-post` for all interactions — no full page reloads
 - Use HTMX SSE extension for live updates on the now-playing page
 - Keep CSS minimal — functional over styled, dark theme preferred
@@ -329,6 +330,10 @@ and make the binary production-ready.
 - **Migrate `FileTokenStore` to SQLite** (`spotify/auth.go`) — swap
   `FileTokenStore` for a `SQLiteTokenStore` backed by the `tokens` table from
   Phase 9; remove `SPOTIFY_TOKEN_FILE` config var and `spotify-tokens.json`
+- **Migrate `FilePlaylistCache` to SQLite** (`spotify/cache.go`) — swap for a
+  `SQLitePlaylistCache` backed by the `playlist_cache` table from Phase 9;
+  remove `PLAYLIST_CACHE_FILE` config var and `playlist-cache.json`
+- **Remove `/debug/cache` endpoint** (`server/debug.go`, `server/server.go`)
 - **Promote the Spotify "not authorized" warning to a redirect** (`main.go`) —
   instead of logging a warning and continuing, redirect all non-auth HTTP
   requests to `/auth` until a token is present
@@ -360,9 +365,9 @@ and make the binary production-ready.
   Start with a conservative number (e.g. 8–12) and tune from there.
 - **Station assignment UX**: Both music and podcast stations are assigned by
   pasting a Spotify playlist URI or URL. Podcast buckets use Spotify's prompted
-  playlists feature for automatic episode refresh. Both managed via `/config`
-  in the browser UI — no preset-save dial interaction needed since bucket count
-  is fixed.
+  playlists feature for automatic episode refresh. Both managed via `/config` in
+  the browser UI — no preset-save dial interaction needed since bucket count is
+  fixed.
 - **DAC/Amp HAT**: Blocked on confirming driver impedance (4Ω vs 8Ω).
 - **librespot version**: v0.8.0. Events delivered via `--onevent` env vars; full
   event reference at https://github.com/librespot-org/librespot/wiki/Events.
@@ -394,15 +399,15 @@ listening to 99.1 Rock Radio") and blends it into the audio stream seamlessly.
 
 ### Analog Tuning Feel — Static Bleed at Bucket Boundaries
 
-Rather than hard-snapping to a bucket, the audio mix reflects how close the
-dial is to the center of a bucket. At dead center: pure music. Drifting toward
-a boundary: static bleeds in. At the midpoint between two buckets: mostly
-static — like a real analog tuner that needs to be precisely placed.
+Rather than hard-snapping to a bucket, the audio mix reflects how close the dial
+is to the center of a bucket. At dead center: pure music. Drifting toward a
+boundary: static bleeds in. At the midpoint between two buckets: mostly static —
+like a real analog tuner that needs to be precisely placed.
 
 - **Requires ALSA loopback mixing** (see below)
 - **Requires raw angle events from the dial watcher** in addition to the
-  settled-bucket events it currently emits — the mixer needs a continuous
-  stream of angle readings to update the mix ratio in real time
+  settled-bucket events it currently emits — the mixer needs a continuous stream
+  of angle readings to update the mix ratio in real time
 - Mix ratio curve TBD from experimentation — linear or sigmoid between bucket
   center and boundary
 
@@ -419,8 +424,8 @@ TTS clip / static bleed  ───────────────── ┘
 
 - Load `snd-aloop` kernel module on the Pi (add to `/etc/modules`)
 - Configure librespot to output to the loopback device rather than `hw:0`
-  directly — the `STATIC_AUDIO_SINK` / librespot output config should keep
-  this in mind; avoid hardcoding `hw:0` in ways that are hard to reroute later
+  directly — the `STATIC_AUDIO_SINK` / librespot output config should keep this
+  in mind; avoid hardcoding `hw:0` in ways that are hard to reroute later
 - The Go mixer process reads PCM frames from the loopback, applies per-frame
   gain curves, and writes to the real output device; a simple custom Go process
   (using `oto` or raw ALSA writes) gives more control than `ffmpeg amix` for

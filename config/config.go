@@ -20,6 +20,7 @@ type Config struct {
 	SpotifyRedirectURI  string
 	SpotifyTokenFile    string
 	SpotifyTestPlaylist string
+	PlaylistCacheFile   string
 
 	// Static audio
 	StaticAudioBin  string
@@ -104,6 +105,7 @@ func Load() (*Config, error) {
 
 	cfg.SpotifyTokenFile    = getEnv("SPOTIFY_TOKEN_FILE", "spotify-tokens.json")
 	cfg.SpotifyTestPlaylist = os.Getenv("SPOTIFY_TEST_PLAYLIST")
+	cfg.PlaylistCacheFile   = getEnv("PLAYLIST_CACHE_FILE", "playlist-cache.json")
 
 	// Static audio
 	cfg.StaticAudioBin  = getEnv("STATIC_AUDIO_BIN", "ffmpeg")

@@ -120,20 +120,21 @@ Do not create files outside this structure without a good reason.
 
 ## Environment Variables (config package)
 
-| Variable                | Description                                               | Default            |
-| ----------------------- | --------------------------------------------------------- | ------------------ |
-| `PORT`                  | HTTP listen port                                          | `8080`             |
-| `DB_PATH`               | Path to SQLite database file                              | `radio.db`         |
-| `LIBRESPOT_BIN`         | Path to librespot binary                                  | `librespot`        |
-| `LIBRESPOT_DEVICE_NAME` | Spotify Connect device name                               | `Zenith Radio`     |
-| `LIBRESPOT_CACHE_DIR`   | Directory for librespot credential/file cache             | `librespot-cache`  |
-| `BUCKET_COUNT`          | Number of dial stations                                   | `12`               |
-| `STATIC_AUDIO_BIN`      | Binary for looping static audio (`ffmpeg`/`aplay`)        | `ffmpeg`           |
-| `STATIC_AUDIO_FILE`     | Path to the static noise audio file                       | `static/noise.mp3` |
-| `STATIC_AUDIO_SINK`     | ALSA output device for ffmpeg (e.g. `hw:0`); empty = auto | `""`               |
-| `SPOTIFY_CLIENT_ID`     | Spotify app client ID                                     | required           |
-| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret                                 | required           |
-| `SPOTIFY_REDIRECT_URI`  | OAuth redirect URI for auth code flow                     | required           |
+| Variable                | Description                                               | Default               |
+| ----------------------- | --------------------------------------------------------- | --------------------- |
+| `PORT`                  | HTTP listen port                                          | `8080`                |
+| `DB_PATH`               | Path to SQLite database file                              | `radio.db`            |
+| `LIBRESPOT_BIN`         | Path to librespot binary                                  | `librespot`           |
+| `LIBRESPOT_DEVICE_NAME` | Spotify Connect device name                               | `Zenith Radio`        |
+| `LIBRESPOT_CACHE_DIR`   | Directory for librespot credential/file cache             | `librespot-cache`     |
+| `BUCKET_COUNT`          | Number of dial stations                                   | `12`                  |
+| `STATIC_AUDIO_BIN`      | Binary for looping static audio (`ffmpeg`/`aplay`)        | `ffmpeg`              |
+| `STATIC_AUDIO_FILE`     | Path to the static noise audio file                       | `static/noise.mp3`    |
+| `STATIC_AUDIO_SINK`     | ALSA output device for ffmpeg (e.g. `hw:0`); empty = auto | `""`                  |
+| `SPOTIFY_CLIENT_ID`     | Spotify app client ID                                     | required              |
+| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret                                 | required              |
+| `SPOTIFY_REDIRECT_URI`  | OAuth redirect URI for auth code flow                     | required              |
+| `PLAYLIST_CACHE_FILE`   | File-based playlist cache (migrated to SQLite in Phase 9) | `playlist-cache.json` |
 
 ## SQLite Schema
 

@@ -51,6 +51,7 @@ func main() {
 		slog.Warn("Spotify not authorized — visit /auth in a browser to complete setup")
 	}
 	spotifyClient := spotify.NewClient(auth)
+	playlistCache := spotify.NewFilePlaylistCache(cfg.PlaylistCacheFile)
 
 	lp := librespot.New(librespot.Config{
 		BinPath:    cfg.LibrespotBin,
@@ -89,7 +90,7 @@ func main() {
 		defer w.Stop()
 	}
 
-	srv, err := server.New(cfg, spotifyClient, bus)
+	srv, err := server.New(cfg, spotifyClient, playlistCache, bus)
 	if err != nil {
 		slog.Error("failed to create server", "err", err)
 		os.Exit(1)

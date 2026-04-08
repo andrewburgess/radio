@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -176,4 +177,22 @@ func (s *Server) handleDebugSimulate(w http.ResponseWriter, r *http.Request) {
 	// we read the state back for the response.
 	time.Sleep(10 * time.Millisecond)
 	s.render(w, "debug", "debug-state", s.state.snapshot(s.cfg.BucketCount))
+}
+
+// handleDebugCache dumps the current playlist cache as JSON. Useful for
+// verifying snapshot_id invalidation is working correctly. Removed in Phase 10.
+func (s *Server) handleDebugCache(w http.ResponseWriter, r *http.Request) {
+	all, err := s.playlistCache.All()
+	if err != nil {
+		slog.Error("debug/cache: read cache failed", "err", err)
+		http.Error(w, "read cache: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(all); err != nil {
+		slog.Error("debug/cache: encode failed", "err", err)
+	}
 }

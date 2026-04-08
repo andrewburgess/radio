@@ -83,7 +83,7 @@ func (s *Server) handleDebugPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tracks, err := s.spotify.GetPlaylistTracks(ctx, s.cfg.SpotifyTestPlaylist)
+	tracks, err := s.spotify.GetTracksWithCache(ctx, s.cfg.SpotifyTestPlaylist, s.playlistCache)
 	if err != nil {
 		slog.Error("debug/play: get playlist tracks failed", "err", err)
 		http.Error(w, "get playlist: "+err.Error(), http.StatusInternalServerError)

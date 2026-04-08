@@ -5,6 +5,7 @@ radio
 radio.exe
 radio-linux-arm64
 spotify-tokens.json
+playlist-cache.json
 librespot-cache/
 *.local.json
 .DS_Store

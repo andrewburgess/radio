@@ -156,6 +156,23 @@ func (c *Client) GetCurrentTrack(ctx context.Context) (*Track, error) {
 	}, nil
 }
 
+// GetPlaylistSnapshot returns the snapshot_id for a playlist — a cheap way to
+// detect whether the playlist has changed without fetching the full track list.
+// playlistURI may be a full Spotify URI, web URL, or bare ID.
+func (c *Client) GetPlaylistSnapshot(ctx context.Context, playlistURI string) (string, error) {
+	id := SpotifyID(playlistURI)
+	if id == "" {
+		return "", fmt.Errorf("spotify: invalid playlist URI %q", playlistURI)
+	}
+	var resp struct {
+		SnapshotID string `json:"snapshot_id"`
+	}
+	if err := c.get(ctx, "/playlists/"+id+"?fields=snapshot_id", &resp); err != nil {
+		return "", fmt.Errorf("spotify: get snapshot: %w", err)
+	}
+	return resp.SnapshotID, nil
+}
+
 // GetPlaylistTracks fetches all tracks in a playlist, following pagination.
 // playlistURI may be a full Spotify URI (spotify:playlist:ID) or a bare ID.
 func (c *Client) GetPlaylistTracks(ctx context.Context, playlistURI string) ([]Track, error) {
