@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"andrewburgess.io/radio/audio"
 	"andrewburgess.io/radio/config"
 	"andrewburgess.io/radio/events"
 	"andrewburgess.io/radio/spotify"
@@ -17,18 +18,19 @@ import (
 var templateFS embed.FS
 
 type Server struct {
-	cfg        *config.Config
-	mux        *http.ServeMux
-	httpServer *http.Server
-	templates  map[string]*template.Template
-	spotify    *spotify.Client
-	store      *store.Store
-	bus        *events.Bus
-	state      *radioState
-	broker     *sseBroker
+	cfg         *config.Config
+	mux         *http.ServeMux
+	httpServer  *http.Server
+	templates   map[string]*template.Template
+	spotify     *spotify.Client
+	store       *store.Store
+	bus         *events.Bus
+	staticAudio *audio.Static
+	state       *radioState
+	broker      *sseBroker
 }
 
-func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus) (*Server, error) {
+func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static) (*Server, error) {
 	pages := []string{"index", "auth", "debug", "music", "podcast"}
 	templates := make(map[string]*template.Template, len(pages))
 	for _, page := range pages {
@@ -43,18 +45,20 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 	}
 
 	s := &Server{
-		cfg:       cfg,
-		mux:       http.NewServeMux(),
-		templates: templates,
-		spotify:   spotifyClient,
-		store:     db,
-		bus:       bus,
-		state:     newRadioState(),
-		broker:    newSSEBroker(),
+		cfg:         cfg,
+		mux:         http.NewServeMux(),
+		templates:   templates,
+		spotify:     spotifyClient,
+		store:       db,
+		bus:         bus,
+		staticAudio: staticAudio,
+		state:       newRadioState(),
+		broker:      newSSEBroker(),
 	}
 
 	go s.runStateUpdater()
 	go s.runSSEPublisher()
+	go s.runStationController()
 	s.registerRoutes()
 	return s, nil
 }

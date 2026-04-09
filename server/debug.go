@@ -41,8 +41,8 @@ type radioState struct {
 func newRadioState() *radioState {
 	return &radioState{
 		mode:    events.ModeMusic,
-		powerOn: true,
-		volume:  80,
+		powerOn: false,
+		volume:  0,
 	}
 }
 

@@ -1,10 +1,12 @@
 package audio
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log/slog"
 	"os/exec"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -125,14 +127,27 @@ func (s *Static) launch(stopCh <-chan struct{}) error {
 
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, s.cfg.Bin, s.buildArgs()...)
+	bin, args := s.buildCommand()
+	cmd := exec.CommandContext(ctx, bin, args...)
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("static audio: stderr pipe: %w", err)
+	}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("static audio: start: %w", err)
 	}
-	slog.Info("static audio started", "pid", cmd.Process.Pid, "file", s.cfg.File)
+	slog.Info("static audio started", "pid", cmd.Process.Pid, "bin", bin, "args", args)
 
-	err := cmd.Wait()
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			slog.Warn("static audio stderr", "line", scanner.Text())
+		}
+	}()
+
+	err = cmd.Wait()
 	if ctx.Err() != nil {
 		return nil // stopped intentionally
 	}
@@ -144,16 +159,15 @@ func (s *Static) launch(stopCh <-chan struct{}) error {
 	return err
 }
 
-// buildArgs constructs the command-line arguments for the configured player.
+// buildCommand returns the binary and arguments to launch for the configured
+// player. The binary may differ from s.cfg.Bin when a platform fallback is used.
 //
-// ffmpeg (default): loops the file indefinitely.
-//   - With sink:    ffmpeg -loglevel quiet -stream_loop -1 -i <file> -f alsa <sink>
-//   - Without sink: ffmpeg -loglevel quiet -stream_loop -1 -i <file> -f ...auto
-//
-// aplay: plays the file once; the supervisor loop in run() provides the loop
-// by restarting the process on exit.
-//   - aplay -q <file>
-func (s *Static) buildArgs() []string {
+//   - ffmpeg + ALSA sink:  ffmpeg -loglevel error -stream_loop -1 -i <file> -f alsa <sink>
+//   - ffmpeg + macOS:      ffplay -nodisp -loop 0 <file>  (loops natively, no gap)
+//   - ffplay:              ffplay -nodisp -loop 0 <file>
+//   - aplay:               aplay -q <file>  (supervisor loop provides looping)
+//   - afplay:              afplay <file>    (supervisor loop provides looping)
+func (s *Static) buildCommand() (string, []string) {
 	bin := s.cfg.Bin
 	// Normalise to just the binary name for matching (handles full paths).
 	for i := len(bin) - 1; i >= 0; i-- {
@@ -165,16 +179,29 @@ func (s *Static) buildArgs() []string {
 
 	switch bin {
 	case "aplay":
-		return []string{"-q", s.cfg.File}
+		return s.cfg.Bin, []string{"-q", s.cfg.File}
+	case "afplay":
+		return s.cfg.Bin, []string{s.cfg.File}
+	case "ffplay":
+		return s.cfg.Bin, []string{"-nodisp", "-loglevel", "error", "-loop", "0", s.cfg.File}
 	default: // ffmpeg
-		args := []string{
-			"-loglevel", "quiet",
+		if s.cfg.Sink != "" {
+			return s.cfg.Bin, []string{
+				"-loglevel", "error",
+				"-stream_loop", "-1",
+				"-i", s.cfg.File,
+				"-f", "alsa", s.cfg.Sink,
+			}
+		}
+		if runtime.GOOS == "darwin" {
+			// ffmpeg has no reliable macOS audio muxer; use ffplay which ships with it.
+			return "ffplay", []string{"-nodisp", "-loglevel", "error", "-loop", "0", s.cfg.File}
+		}
+		// Linux without a sink: return ffmpeg args as-is; caller must set STATIC_AUDIO_SINK.
+		return s.cfg.Bin, []string{
+			"-loglevel", "error",
 			"-stream_loop", "-1",
 			"-i", s.cfg.File,
 		}
-		if s.cfg.Sink != "" {
-			args = append(args, "-f", "alsa", s.cfg.Sink)
-		}
-		return args
 	}
 }

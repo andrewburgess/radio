@@ -100,7 +100,7 @@ func main() {
 		defer w.Stop()
 	}
 
-	srv, err := server.New(cfg, spotifyClient, db, bus)
+	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio)
 	if err != nil {
 		slog.Error("failed to create server", "err", err)
 		os.Exit(1)
