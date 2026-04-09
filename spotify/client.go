@@ -279,6 +279,19 @@ func (c *Client) GetShowEpisodes(ctx context.Context, showURI, showName string, 
 	return episodes, nil
 }
 
+// SetVolume sets the playback volume (0–100) on deviceID (or the active device
+// if deviceID is empty).
+func (c *Client) SetVolume(ctx context.Context, deviceID string, percent int) error {
+	path := fmt.Sprintf("/me/player/volume?volume_percent=%d", percent)
+	if deviceID != "" {
+		path += "&device_id=" + deviceID
+	}
+	if err := c.put(ctx, path, nil); err != nil {
+		return fmt.Errorf("spotify: set volume: %w", err)
+	}
+	return nil
+}
+
 // GetPlaylistImage returns the URL of the cover image for a playlist,
 // preferring the largest available image. Returns an empty string if the
 // playlist has no images.

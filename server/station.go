@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -88,16 +89,59 @@ func (s *Server) switchStation(bucket int, mode string) {
 		return
 	}
 
+	deviceID, err := s.findDevice(ctx)
+	if err != nil {
+		slog.Error("station: find device", "err", err)
+		// fall through with empty ID — Spotify targets the last active device
+	}
+
+	if err := s.spotify.SetVolume(ctx, deviceID, 100); err != nil {
+		slog.Warn("station: set volume", "err", err)
+	}
+
 	trackIdx, posMs := radioTimeOffset(tracks)
 	slog.Info("station: switching",
 		"bucket", bucket, "mode", mode,
 		"uri", station.PlaylistURI,
+		"device_id", deviceID,
 		"track_idx", trackIdx, "pos_ms", posMs,
 	)
 
-	if err := s.spotify.Play(ctx, "", station.PlaylistURI, trackIdx, posMs); err != nil {
+	if err := s.spotify.Play(ctx, deviceID, station.PlaylistURI, trackIdx, posMs); err != nil {
 		slog.Error("station: play", "err", err)
 	}
+}
+
+// findDevice returns the Spotify Connect device ID for the configured librespot
+// instance. It retries several times with a short delay because librespot may
+// take a moment to register with Spotify after starting.
+func (s *Server) findDevice(ctx context.Context) (string, error) {
+	const attempts = 6
+	const retryDelay = 500 * time.Millisecond
+
+	for i := range attempts {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(retryDelay):
+			}
+			slog.Debug("station: retrying device lookup", "attempt", i+1)
+		}
+
+		devices, err := s.spotify.GetDevices(ctx)
+		if err != nil {
+			return "", fmt.Errorf("get devices: %w", err)
+		}
+
+		for _, d := range devices {
+			if d.Name == s.cfg.LibrespotDeviceName {
+				return d.ID, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("device %q not found after %d attempts", s.cfg.LibrespotDeviceName, attempts)
 }
 
 // stopPlayback pauses Spotify and stops static audio.
