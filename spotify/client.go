@@ -279,6 +279,30 @@ func (c *Client) GetShowEpisodes(ctx context.Context, showURI, showName string, 
 	return episodes, nil
 }
 
+// GetTrackImage returns the URL of the album art for a track, preferring the
+// largest available image. Returns an empty string if the track has no images.
+// trackURI may be a full Spotify URI, web URL, or bare ID.
+func (c *Client) GetTrackImage(ctx context.Context, trackURI string) (string, error) {
+	id := SpotifyID(trackURI)
+	if id == "" {
+		return "", fmt.Errorf("spotify: invalid track URI %q", trackURI)
+	}
+	var resp struct {
+		Album struct {
+			Images []struct {
+				URL string `json:"url"`
+			} `json:"images"`
+		} `json:"album"`
+	}
+	if err := c.get(ctx, "/tracks/"+id, &resp); err != nil {
+		return "", fmt.Errorf("spotify: get track image: %w", err)
+	}
+	if len(resp.Album.Images) > 0 {
+		return resp.Album.Images[0].URL, nil
+	}
+	return "", nil
+}
+
 // SetVolume sets the playback volume (0–100) on deviceID (or the active device
 // if deviceID is empty).
 func (c *Client) SetVolume(ctx context.Context, deviceID string, percent int) error {
@@ -290,6 +314,28 @@ func (c *Client) SetVolume(ctx context.Context, deviceID string, percent int) er
 		return fmt.Errorf("spotify: set volume: %w", err)
 	}
 	return nil
+}
+
+// GetPlaylistInfo returns the name and cover image URL for a playlist in a
+// single API call. imageURL is empty if the playlist has no images.
+func (c *Client) GetPlaylistInfo(ctx context.Context, playlistURI string) (name, imageURL string, err error) {
+	id := SpotifyID(playlistURI)
+	if id == "" {
+		return "", "", fmt.Errorf("spotify: invalid playlist URI %q", playlistURI)
+	}
+	var resp struct {
+		Name   string `json:"name"`
+		Images []struct {
+			URL string `json:"url"`
+		} `json:"images"`
+	}
+	if err := c.get(ctx, "/playlists/"+id+"?fields=name,images", &resp); err != nil {
+		return "", "", fmt.Errorf("spotify: get playlist info: %w", err)
+	}
+	if len(resp.Images) > 0 {
+		imageURL = resp.Images[0].URL
+	}
+	return resp.Name, imageURL, nil
 }
 
 // GetPlaylistImage returns the URL of the cover image for a playlist,

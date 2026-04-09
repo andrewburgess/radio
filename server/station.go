@@ -75,6 +75,16 @@ func (s *Server) switchStation(bucket int, mode string) {
 	s.staticAudio.Stop()
 	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
 
+	stationName, stationImage, err := s.spotify.GetPlaylistInfo(ctx, station.PlaylistURI)
+	if err != nil {
+		slog.Warn("station: fetch playlist info", "uri", station.PlaylistURI, "err", err)
+	}
+	s.bus.Publish(events.Event{
+		Kind:            events.KindStationChanged,
+		StationName:     stationName,
+		StationImageURL: stationImage,
+	})
+
 	tracks, err := s.spotify.GetTracksWithCache(ctx, station.PlaylistURI, s.store)
 	if err != nil {
 		slog.Error("station: fetch tracks", "uri", station.PlaylistURI, "err", err)

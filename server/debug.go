@@ -35,7 +35,10 @@ type radioState struct {
 	showName      string
 	trackURI      string
 	album         string
-	recentEvents  []eventEntry
+	artworkURL      string
+	stationName     string
+	stationImageURL string
+	recentEvents    []eventEntry
 }
 
 func newRadioState() *radioState {
@@ -60,7 +63,10 @@ type stateSnapshot struct {
 	ShowName       string
 	TrackURI       string
 	Album          string
-	RecentEvents   []eventEntry
+	ArtworkURL      string
+	StationName     string
+	StationImageURL string
+	RecentEvents    []eventEntry
 	BucketMaxIndex int
 }
 
@@ -81,6 +87,9 @@ func (rs *radioState) snapshot(bucketCount int) stateSnapshot {
 		ShowName:       rs.showName,
 		TrackURI:       rs.trackURI,
 		Album:          rs.album,
+		ArtworkURL:      rs.artworkURL,
+		StationName:     rs.stationName,
+		StationImageURL: rs.stationImageURL,
 		RecentEvents:   ev,
 		BucketMaxIndex: bucketCount - 1,
 	}
@@ -97,6 +106,7 @@ func (rs *radioState) update(e events.Event) {
 		desc = fmt.Sprintf("dial_moved: bucket=%d", e.Bucket)
 	case events.KindToggleSwitched:
 		rs.mode = e.Mode
+		rs.artworkURL = ""
 		desc = fmt.Sprintf("toggle_switched: mode=%s", e.Mode)
 	case events.KindPowerChanged:
 		rs.powerOn = e.PowerOn
@@ -110,6 +120,7 @@ func (rs *radioState) update(e events.Event) {
 		rs.showName = e.ShowName
 		rs.trackURI = e.TrackURI
 		rs.album = e.Album
+		rs.artworkURL = ""
 		desc = fmt.Sprintf("track_changed: %q — %s", e.TrackName, e.Artists)
 	case events.KindPlaybackStateChanged:
 		rs.playing = e.Playing
@@ -118,8 +129,15 @@ func (rs *radioState) update(e events.Event) {
 		} else {
 			desc = "playback: paused"
 		}
+	case events.KindStationChanged:
+		rs.stationName = e.StationName
+		rs.stationImageURL = e.StationImageURL
+		desc = fmt.Sprintf("station_changed: %q", e.StationName)
 	case events.KindStaticStarted:
 		rs.staticPlaying = true
+		rs.artworkURL = ""
+		rs.stationName = ""
+		rs.stationImageURL = ""
 		desc = "static: started"
 	case events.KindStaticStopped:
 		rs.staticPlaying = false
@@ -133,6 +151,12 @@ func (rs *radioState) update(e events.Event) {
 	if len(rs.recentEvents) > maxRecentEvents {
 		rs.recentEvents = rs.recentEvents[:maxRecentEvents]
 	}
+}
+
+func (rs *radioState) setArtworkURL(url string) {
+	rs.mu.Lock()
+	rs.artworkURL = url
+	rs.mu.Unlock()
 }
 
 // handleDebug renders the full debug panel page.

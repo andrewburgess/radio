@@ -16,7 +16,34 @@
         color: #c8a84b;
     }
     .np-card {
-        max-width: 520px;
+        display: flex;
+        gap: 1.75rem;
+        align-items: flex-start;
+        max-width: 600px;
+    }
+    .np-artwork {
+        flex-shrink: 0;
+        width: 160px;
+        height: 160px;
+        background: #111;
+        border: 1px solid #222;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .np-artwork img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    .np-artwork-placeholder {
+        color: #2a2a2a;
+        font-size: 2.5rem;
+    }
+    .np-info {
+        flex: 1;
+        min-width: 0;
     }
     .np-label {
         font-size: 0.65rem;
@@ -44,6 +71,25 @@
         color: #555;
         margin-bottom: 1.5rem;
         min-height: 1rem;
+    }
+    .np-station {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-top: 1.25rem;
+    }
+    .np-station-img {
+        width: 28px;
+        height: 28px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid #222;
+    }
+    .np-station-name {
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        color: #555;
+        text-transform: uppercase;
     }
     .np-status {
         font-size: 0.8rem;
@@ -92,29 +138,37 @@
 </div>
 
 <div id="np-card" class="np-card{{if not .PowerOn}} np-power-off{{end}}">
-    <div
-        id="np-signal"
-        class="no-signal"
-        {{if
-        not
-        $static}}
-        style="display: none"
+    <div id="np-artwork" class="np-artwork">
+        {{if .ArtworkURL}}
+        <img src="{{.ArtworkURL}}" alt="album art" />
+        {{else}}
+        <span class="np-artwork-placeholder">♪</span>
         {{end}}
-    >
-        ~~~~ NO SIGNAL ~~~~
     </div>
-    <div id="np-track-info" {{if $static}} style="display: none" {{end}}>
-        <div class="np-label">NOW PLAYING</div>
-        <div id="np-track" class="np-track">
-            {{if .TrackName}}{{.TrackName}}{{else}}&mdash;{{end}}
+    <div class="np-info">
+        <div
+            id="np-signal"
+            class="no-signal"
+            {{if not $static}}style="display: none"{{end}}
+        >
+            ~~~~ NO SIGNAL ~~~~
         </div>
-        <div id="np-artists" class="np-artists">
-            {{if .Artists}}{{.Artists}}{{else if .ShowName}}{{.ShowName}}{{end}}
-        </div>
-        <div id="np-album" class="np-album">{{.Album}}</div>
-        <div id="np-status" class="np-status{{if not $playing}} paused{{end}}">
-            {{if $playing}}&#9654;&#xFE0E; PLAYING{{else}}&#9646;&#9646;
-            PAUSED{{end}}
+        <div id="np-track-info" {{if $static}}style="display: none"{{end}}>
+            <div class="np-label">NOW PLAYING</div>
+            <div id="np-track" class="np-track">
+                {{if .TrackName}}{{.TrackName}}{{else}}&mdash;{{end}}
+            </div>
+            <div id="np-artists" class="np-artists">
+                {{if .Artists}}{{.Artists}}{{else if .ShowName}}{{.ShowName}}{{end}}
+            </div>
+            <div id="np-album" class="np-album">{{.Album}}</div>
+            <div id="np-status" class="np-status{{if not $playing}} paused{{end}}">
+                {{if $playing}}&#9654;&#xFE0E; PLAYING{{else}}&#9646;&#9646; PAUSED{{end}}
+            </div>
+            <div id="np-station" class="np-station"{{if not .StationName}} style="display:none"{{end}}>
+                {{if .StationImageURL}}<img id="np-station-img" class="np-station-img" src="{{.StationImageURL}}" alt="" />{{else}}<img id="np-station-img" class="np-station-img" style="display:none" alt="" />{{end}}
+                <span id="np-station-name" class="np-station-name">{{.StationName}}</span>
+            </div>
         </div>
     </div>
 </div>
@@ -143,11 +197,24 @@
             if (el) el.style.display = "none";
         }
 
+        function clearArtwork() {
+            const el = document.getElementById("np-artwork");
+            if (el) el.innerHTML = '<span class="np-artwork-placeholder">\u266a</span>';
+        }
+
         es.addEventListener("track", function (e) {
             const d = JSON.parse(e.data);
             set("np-track", d.name || "\u2014");
             set("np-artists", d.artists || d.show_name || "");
             set("np-album", d.album || "");
+            const artwork = document.getElementById("np-artwork");
+            if (artwork) {
+                if (d.image_url) {
+                    artwork.innerHTML = '<img src="' + d.image_url + '" alt="album art" />';
+                } else {
+                    artwork.innerHTML = '<span class="np-artwork-placeholder">\u266a</span>';
+                }
+            }
         });
 
         es.addEventListener("playback", function (e) {
@@ -168,6 +235,7 @@
             if (d.playing) {
                 show("np-signal");
                 hide("np-track-info");
+                clearArtwork();
             } else {
                 hide("np-signal");
                 show("np-track-info");
@@ -182,6 +250,7 @@
         es.addEventListener("mode", function (e) {
             const d = JSON.parse(e.data);
             set("np-mode", d.mode === "podcast" ? "PODCAST" : "MUSIC");
+            clearArtwork();
         });
 
         es.addEventListener("power", function (e) {
@@ -190,6 +259,24 @@
             const label = document.getElementById("np-power-label");
             if (card) card.classList.toggle("np-power-off", !d.on);
             if (label) label.textContent = d.on ? "ON" : "OFF";
+        });
+
+        es.addEventListener("station", function (e) {
+            const d = JSON.parse(e.data);
+            const row = document.getElementById("np-station");
+            const img = document.getElementById("np-station-img");
+            const name = document.getElementById("np-station-name");
+            if (!row) return;
+            if (d.name) {
+                if (name) name.textContent = d.name;
+                if (img) {
+                    if (d.image_url) { img.src = d.image_url; img.style.display = ""; }
+                    else { img.style.display = "none"; }
+                }
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
         });
 
         es.addEventListener("volume", function (e) {

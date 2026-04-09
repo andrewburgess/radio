@@ -17,6 +17,7 @@ const (
 	KindStaticStopped            // static audio stopped
 	KindPowerChanged             // radio turned on or off via volume knob switch
 	KindVolumeChanged            // volume pot position changed (0–100)
+	KindStationChanged           // tuned to a new station (name/image resolved)
 )
 
 // Mode represents the AM/FM toggle position.
@@ -55,6 +56,10 @@ type Event struct {
 
 	// KindVolumeChanged (0–100)
 	Volume int
+
+	// KindStationChanged
+	StationName     string
+	StationImageURL string
 }
 
 // Bus is a simple fan-out pub/sub backed by Go channels.

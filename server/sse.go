@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -19,6 +20,7 @@ const (
 	sseEventMode     = "mode"     // AM/FM toggle changed
 	sseEventPower    = "power"    // power on/off
 	sseEventVolume   = "volume"   // volume level 0–100
+	sseEventStation  = "station"  // station name/image resolved
 )
 
 // SSE payload types — one per event name.
@@ -30,6 +32,7 @@ type sseTrackPayload struct {
 	Album      string `json:"album"`
 	ShowName   string `json:"show_name,omitempty"`
 	DurationMs int    `json:"duration_ms"`
+	ImageURL   string `json:"image_url,omitempty"`
 }
 
 type ssePlaybackPayload struct {
@@ -55,6 +58,11 @@ type ssePowerPayload struct {
 
 type sseVolumePayload struct {
 	Volume int `json:"volume"`
+}
+
+type sseStationPayload struct {
+	Name     string `json:"name"`
+	ImageURL string `json:"image_url,omitempty"`
 }
 
 // sseClient is one connected browser client.
@@ -170,6 +178,7 @@ func (s *Server) publishSnapshot(c *sseClient) {
 		Name:     snap.TrackName,
 		Artists:  snap.Artists,
 		ShowName: snap.ShowName,
+		ImageURL: snap.ArtworkURL,
 	})
 	send(sseEventPlayback, ssePlaybackPayload{Playing: snap.Playing})
 	send(sseEventStatic, sseStaticPayload{Playing: snap.StaticPlaying})
@@ -177,6 +186,7 @@ func (s *Server) publishSnapshot(c *sseClient) {
 	send(sseEventMode, sseModePayload{Mode: string(snap.Mode)})
 	send(sseEventPower, ssePowerPayload{On: snap.PowerOn})
 	send(sseEventVolume, sseVolumePayload{Volume: snap.Volume})
+	send(sseEventStation, sseStationPayload{Name: snap.StationName, ImageURL: snap.StationImageURL})
 }
 
 // runSSEPublisher subscribes to the event bus and translates each event into
@@ -188,6 +198,11 @@ func (s *Server) runSSEPublisher() {
 	for e := range ch {
 		switch e.Kind {
 		case events.KindTrackChanged:
+			imageURL, err := s.spotify.GetTrackImage(context.Background(), e.TrackURI)
+			if err != nil {
+				slog.Warn("sse: fetch track image", "err", err)
+			}
+			s.state.setArtworkURL(imageURL)
 			s.broker.publish(sseEventTrack, sseTrackPayload{
 				URI:        e.TrackURI,
 				Name:       e.TrackName,
@@ -195,6 +210,7 @@ func (s *Server) runSSEPublisher() {
 				Album:      e.Album,
 				ShowName:   e.ShowName,
 				DurationMs: e.DurationMs,
+				ImageURL:   imageURL,
 			})
 		case events.KindPlaybackStateChanged:
 			s.broker.publish(sseEventPlayback, ssePlaybackPayload{
@@ -203,6 +219,7 @@ func (s *Server) runSSEPublisher() {
 			})
 		case events.KindStaticStarted:
 			s.broker.publish(sseEventStatic, sseStaticPayload{Playing: true})
+			s.broker.publish(sseEventStation, sseStationPayload{})
 		case events.KindStaticStopped:
 			s.broker.publish(sseEventStatic, sseStaticPayload{Playing: false})
 		case events.KindDialMoved:
@@ -213,6 +230,11 @@ func (s *Server) runSSEPublisher() {
 			s.broker.publish(sseEventPower, ssePowerPayload{On: e.PowerOn})
 		case events.KindVolumeChanged:
 			s.broker.publish(sseEventVolume, sseVolumePayload{Volume: e.Volume})
+		case events.KindStationChanged:
+			s.broker.publish(sseEventStation, sseStationPayload{
+				Name:     e.StationName,
+				ImageURL: e.StationImageURL,
+			})
 		}
 	}
 }
