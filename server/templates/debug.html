@@ -95,7 +95,7 @@
     .event-log {
         font-size: 0.75rem;
         max-height: 14rem;
-        overflow-y: auto;
+        overflow-y: scroll;
     }
     .ev {
         display: flex;
@@ -191,22 +191,14 @@
 
 <div class="dbg-section">
     <h2>EVENT LOG</h2>
-    <div
-        id="eventlog"
-        hx-get="/debug/state"
-        hx-trigger="every 1s"
-        hx-swap="innerHTML"
-        hx-select="#eventlog-inner"
-    >
-        <div id="eventlog-inner" class="event-log">
-            {{range .RecentEvents}}
-            <div class="ev">
-                <span class="t">{{.Time}}</span><span class="d">{{.Desc}}</span>
-            </div>
-            {{else}}
-            <div style="color: #333; font-size: 0.75rem">no events yet</div>
-            {{end}}
+    <div id="eventlog-inner" class="event-log">
+        {{range .RecentEvents}}
+        <div class="ev">
+            <span class="t">{{.Time}}</span><span class="d">{{.Desc}}</span>
         </div>
+        {{else}}
+        <div style="color: #333; font-size: 0.75rem">no events yet</div>
+        {{end}}
     </div>
 </div>
 {{end}} {{define "debug-state"}}
@@ -244,7 +236,11 @@
     {{if .TrackName}}{{.TrackName}}{{if .Artists}} &mdash;
     {{.Artists}}{{end}}{{else}}&mdash;{{end}}
 </div>
-<div id="eventlog-inner" class="event-log">
+{{end}}
+
+{{define "debug-state-poll"}}
+{{template "debug-state" .}}
+<div id="eventlog-inner" class="event-log" hx-swap-oob="innerHTML">
     {{range .RecentEvents}}
     <div class="ev">
         <span class="t">{{.Time}}</span><span class="d">{{.Desc}}</span>

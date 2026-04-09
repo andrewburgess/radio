@@ -140,9 +140,9 @@ func (s *Server) handleDebug(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "debug", "base", s.state.snapshot(s.cfg.BucketCount))
 }
 
-// handleDebugState returns the polled state fragment.
+// handleDebugState returns the polled state fragment (includes OOB event log).
 func (s *Server) handleDebugState(w http.ResponseWriter, r *http.Request) {
-	s.render(w, "debug", "debug-state", s.state.snapshot(s.cfg.BucketCount))
+	s.render(w, "debug", "debug-state-poll", s.state.snapshot(s.cfg.BucketCount))
 }
 
 // handleDebugSimulate fires a synthetic event onto the bus and returns the
@@ -193,6 +193,6 @@ func (s *Server) handleDebugSimulate(w http.ResponseWriter, r *http.Request) {
 	// Small yield so the bus subscriber goroutine can process the event before
 	// we read the state back for the response.
 	time.Sleep(10 * time.Millisecond)
-	s.render(w, "debug", "debug-state", s.state.snapshot(s.cfg.BucketCount))
+	s.render(w, "debug", "debug-state-poll", s.state.snapshot(s.cfg.BucketCount))
 }
 
