@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"embed"
 	"html/template"
 	"log/slog"
@@ -16,14 +17,15 @@ import (
 var templateFS embed.FS
 
 type Server struct {
-	cfg       *config.Config
-	mux       *http.ServeMux
-	templates map[string]*template.Template
-	spotify   *spotify.Client
-	store     *store.Store
-	bus       *events.Bus
-	state     *radioState
-	broker    *sseBroker
+	cfg        *config.Config
+	mux        *http.ServeMux
+	httpServer *http.Server
+	templates  map[string]*template.Template
+	spotify    *spotify.Client
+	store      *store.Store
+	bus        *events.Bus
+	state      *radioState
+	broker     *sseBroker
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus) (*Server, error) {
@@ -68,9 +70,23 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /debug", s.handleDebug)
 	s.mux.HandleFunc("GET /debug/state", s.handleDebugState)
 	s.mux.HandleFunc("POST /debug/simulate", s.handleDebugSimulate)
-	s.mux.HandleFunc("GET /debug/play", s.handleDebugPlay)
-	s.mux.HandleFunc("GET /debug/cache", s.handleDebugCache)
 	s.mux.HandleFunc("GET /events", s.handleSSE)
+}
+
+// requireAuth is middleware that redirects unauthenticated requests to /auth.
+// Requests to /auth and /auth/callback are always passed through.
+func (s *Server) requireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/auth" || r.URL.Path == "/auth/callback" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if !s.spotify.Auth().HasToken() {
+			http.Redirect(w, r, "/auth", http.StatusFound)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // render executes the named template from the named page's template set.
@@ -93,8 +109,22 @@ func (s *Server) runStateUpdater() {
 	}
 }
 
+// Start begins serving HTTP requests. It blocks until the server exits.
+// Returns http.ErrServerClosed on clean shutdown.
 func (s *Server) Start() error {
 	addr := ":" + s.cfg.Port
 	slog.Info("server starting", "addr", addr)
-	return http.ListenAndServe(addr, s.mux)
+	s.httpServer = &http.Server{
+		Addr:    addr,
+		Handler: s.requireAuth(s.mux),
+	}
+	return s.httpServer.ListenAndServe()
+}
+
+// Shutdown gracefully drains in-flight requests, waiting up to ctx's deadline.
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.httpServer == nil {
+		return nil
+	}
+	return s.httpServer.Shutdown(ctx)
 }

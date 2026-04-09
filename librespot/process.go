@@ -347,7 +347,7 @@ func (p *Process) launch() error {
 func logLines(r io.Reader) {
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		slog.Info("librespot", "msg", scanner.Text())
+		slog.Debug("librespot", "msg", scanner.Text())
 	}
 	if err := scanner.Err(); err != nil {
 		slog.Error("librespot stderr read error", "err", err)

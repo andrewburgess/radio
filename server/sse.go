@@ -126,7 +126,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 	s.broker.add(client)
 	defer s.broker.remove(client)
 
-	slog.Info("sse: client connected", "remote", r.RemoteAddr)
+	slog.Debug("sse: client connected", "remote", r.RemoteAddr)
 
 	// Send a full state snapshot immediately so the client is up to date
 	// without waiting for the next event.
@@ -142,7 +142,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprint(w, msg)
 			flusher.Flush()
 		case <-r.Context().Done():
-			slog.Info("sse: client disconnected", "remote", r.RemoteAddr)
+			slog.Debug("sse: client disconnected", "remote", r.RemoteAddr)
 			return
 		}
 	}

@@ -18,9 +18,6 @@ type Config struct {
 	SpotifyClientID     string
 	SpotifyClientSecret string
 	SpotifyRedirectURI  string
-	SpotifyTokenFile    string
-	SpotifyTestPlaylist string
-	PlaylistCacheFile   string
 
 	// Static audio
 	StaticAudioBin  string
@@ -102,10 +99,6 @@ func Load() (*Config, error) {
 	if cfg.SpotifyRedirectURI == "" {
 		return nil, fmt.Errorf("config: SPOTIFY_REDIRECT_URI is required")
 	}
-
-	cfg.SpotifyTokenFile    = getEnv("SPOTIFY_TOKEN_FILE", "spotify-tokens.json")
-	cfg.SpotifyTestPlaylist = os.Getenv("SPOTIFY_TEST_PLAYLIST")
-	cfg.PlaylistCacheFile   = getEnv("PLAYLIST_CACHE_FILE", "playlist-cache.json")
 
 	// Static audio
 	cfg.StaticAudioBin  = getEnv("STATIC_AUDIO_BIN", "ffmpeg")

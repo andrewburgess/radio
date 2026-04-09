@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"andrewburgess.io/radio/audio"
 	"andrewburgess.io/radio/config"
@@ -107,14 +111,20 @@ func main() {
 	go func() {
 		<-quit
 		slog.Info("shutting down")
-		lp.Stop()
-		os.Exit(0)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			slog.Error("server shutdown error", "err", err)
+		}
 	}()
 
-	if err := srv.Start(); err != nil {
+	if err := srv.Start(); !errors.Is(err, http.ErrServerClosed) {
 		slog.Error("server error", "err", err)
 		os.Exit(1)
 	}
+	slog.Info("server stopped")
 }
 
 // forwardLibrespotEvents translates librespot events into bus events.

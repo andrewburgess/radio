@@ -6,8 +6,7 @@
 //
 //	go run ./cmd/playlistinfo <playlist-url-or-uri>
 //
-// Reads Spotify credentials from the same .env and spotify-tokens.json as the
-// main radio binary.
+// Reads Spotify credentials from the same .env and radio.db as the main radio binary.
 package main
 
 import (
@@ -21,6 +20,7 @@ import (
 
 	"andrewburgess.io/radio/config"
 	"andrewburgess.io/radio/spotify"
+	"andrewburgess.io/radio/store"
 )
 
 func main() {
@@ -35,11 +35,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	db, err := store.New(cfg.DBPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "store: %v\n", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
 	auth, err := spotify.NewAuth(
 		cfg.SpotifyClientID,
 		cfg.SpotifyClientSecret,
 		cfg.SpotifyRedirectURI,
-		spotify.NewFileTokenStore(cfg.SpotifyTokenFile),
+		db,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "auth: %v\n", err)
