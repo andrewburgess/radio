@@ -4,10 +4,6 @@ cache
 radio
 radio.exe
 radio-linux-arm64
-spotify-tokens.json
-playlist-cache.json
-music-config.json
-podcast-config.json
 librespot-cache/
 *.local.json
 .DS_Store

@@ -9,25 +9,24 @@ import (
 	"andrewburgess.io/radio/config"
 	"andrewburgess.io/radio/events"
 	"andrewburgess.io/radio/spotify"
+	"andrewburgess.io/radio/store"
 )
 
 //go:embed templates/*
 var templateFS embed.FS
 
 type Server struct {
-	cfg           *config.Config
-	mux           *http.ServeMux
-	templates     map[string]*template.Template
-	spotify       *spotify.Client
-	playlistCache spotify.PlaylistCacheStore
-	bus           *events.Bus
-	state         *radioState
-	broker        *sseBroker
-	musicConfig   *MusicConfig
-	podcastConfig *PodcastConfig
+	cfg       *config.Config
+	mux       *http.ServeMux
+	templates map[string]*template.Template
+	spotify   *spotify.Client
+	store     *store.Store
+	bus       *events.Bus
+	state     *radioState
+	broker    *sseBroker
 }
 
-func New(cfg *config.Config, spotifyClient *spotify.Client, playlistCache spotify.PlaylistCacheStore, bus *events.Bus) (*Server, error) {
+func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus) (*Server, error) {
 	pages := []string{"index", "debug", "music", "podcast"}
 	templates := make(map[string]*template.Template, len(pages))
 	for _, page := range pages {
@@ -42,16 +41,14 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, playlistCache spotif
 	}
 
 	s := &Server{
-		cfg:            cfg,
-		mux:            http.NewServeMux(),
-		templates:      templates,
-		spotify:        spotifyClient,
-		playlistCache:  playlistCache,
-		bus:            bus,
-		state:          newRadioState(),
-		broker:         newSSEBroker(),
-		musicConfig:    NewMusicConfig("music-config.json", cfg.BucketCount),
-		podcastConfig:  NewPodcastConfig("podcast-config.json", cfg.BucketCount),
+		cfg:       cfg,
+		mux:       http.NewServeMux(),
+		templates: templates,
+		spotify:   spotifyClient,
+		store:     db,
+		bus:       bus,
+		state:     newRadioState(),
+		broker:    newSSEBroker(),
 	}
 
 	go s.runStateUpdater()

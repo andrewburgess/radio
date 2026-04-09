@@ -81,7 +81,7 @@ func (s *Server) handleDebugPlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tracks, err := s.spotify.GetTracksWithCache(ctx, s.cfg.SpotifyTestPlaylist, s.playlistCache)
+	tracks, err := s.spotify.GetTracksWithCache(ctx, s.cfg.SpotifyTestPlaylist, s.store)
 	if err != nil {
 		slog.Error("debug/play: get playlist tracks failed", "err", err)
 		http.Error(w, "get playlist: "+err.Error(), http.StatusInternalServerError)
@@ -119,94 +119,78 @@ func (s *Server) handleDebugPlay(w http.ResponseWriter, r *http.Request) {
 
 // handleMusicConfig renders the music configuration page.
 func (s *Server) handleMusicConfig(w http.ResponseWriter, r *http.Request) {
-	type bucketRow struct {
-		Index    int
-		URI      string
-		ImageURL string
-	}
-	rows := make([]bucketRow, s.cfg.BucketCount)
-	uris := s.musicConfig.All()
-	for i := 0; i < s.cfg.BucketCount; i++ {
-		row := bucketRow{Index: i, URI: uris[i]}
-		if uris[i] != "" {
-			// Fetch playlist image asynchronously to avoid blocking if API is slow
-			imageURL, err := s.spotify.GetPlaylistImage(r.Context(), uris[i])
-			if err != nil {
-				slog.Warn("failed to fetch music playlist image", "bucket", i, "uri", uris[i], "err", err)
-			} else {
-				row.ImageURL = imageURL
-			}
-		}
-		rows[i] = row
-	}
-	s.render(w, "music", "base", map[string]any{
-		"BucketCount": s.cfg.BucketCount,
-		"Buckets":     rows,
-	})
+	s.renderStationConfig(w, r, "music")
 }
 
 // handleMusicConfigSave processes form submission from the music config page.
 func (s *Server) handleMusicConfigSave(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-
-	// Extract bucket URIs from form: input names are like "bucket_0", "bucket_1", etc.
-	for i := 0; i < s.cfg.BucketCount; i++ {
-		key := fmt.Sprintf("bucket_%d", i)
-		uri := r.FormValue(key)
-		if err := s.musicConfig.Set(i, uri); err != nil {
-			slog.Error("music config save failed", "bucket", i, "err", err)
-		}
-	}
-
-	http.Redirect(w, r, "/config/music", http.StatusSeeOther)
+	s.saveStationConfig(w, r, "music", "/config/music")
 }
 
 // handlePodcastConfig renders the podcast configuration page.
 func (s *Server) handlePodcastConfig(w http.ResponseWriter, r *http.Request) {
+	s.renderStationConfig(w, r, "podcast")
+}
+
+// handlePodcastConfigSave processes form submission from the podcast config page.
+func (s *Server) handlePodcastConfigSave(w http.ResponseWriter, r *http.Request) {
+	s.saveStationConfig(w, r, "podcast", "/config/podcast")
+}
+
+// renderStationConfig builds the bucket grid for music or podcast config pages.
+func (s *Server) renderStationConfig(w http.ResponseWriter, r *http.Request, mode string) {
 	type bucketRow struct {
 		Index    int
 		URI      string
 		ImageURL string
 	}
+
+	stations, err := s.store.ListStations(mode)
+	if err != nil {
+		slog.Error("config: list stations failed", "mode", mode, "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	// Build a lookup map so we can fill sparse results into a dense slice.
+	uriByBucket := make(map[int]string, len(stations))
+	for _, st := range stations {
+		uriByBucket[st.Bucket] = st.PlaylistURI
+	}
+
 	rows := make([]bucketRow, s.cfg.BucketCount)
-	uris := s.podcastConfig.All()
 	for i := 0; i < s.cfg.BucketCount; i++ {
-		row := bucketRow{Index: i, URI: uris[i]}
-		if uris[i] != "" {
-			// Fetch playlist image asynchronously to avoid blocking if API is slow
-			imageURL, err := s.spotify.GetPlaylistImage(r.Context(), uris[i])
+		row := bucketRow{Index: i, URI: uriByBucket[i]}
+		if row.URI != "" {
+			imageURL, err := s.spotify.GetPlaylistImage(r.Context(), row.URI)
 			if err != nil {
-				slog.Warn("failed to fetch podcast playlist image", "bucket", i, "uri", uris[i], "err", err)
+				slog.Warn("config: fetch playlist image failed", "mode", mode, "bucket", i, "err", err)
 			} else {
 				row.ImageURL = imageURL
 			}
 		}
 		rows[i] = row
 	}
-	s.render(w, "podcast", "base", map[string]any{
+
+	s.render(w, mode, "base", map[string]any{
 		"BucketCount": s.cfg.BucketCount,
 		"Buckets":     rows,
 	})
 }
 
-// handlePodcastConfigSave processes form submission from the podcast config page.
-func (s *Server) handlePodcastConfigSave(w http.ResponseWriter, r *http.Request) {
+// saveStationConfig persists form-submitted bucket URIs for music or podcast mode.
+func (s *Server) saveStationConfig(w http.ResponseWriter, r *http.Request, mode, redirectTo string) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
 
-	// Extract bucket URIs from form: input names are like "bucket_0", "bucket_1", etc.
 	for i := 0; i < s.cfg.BucketCount; i++ {
-		key := fmt.Sprintf("bucket_%d", i)
-		uri := r.FormValue(key)
-		if err := s.podcastConfig.Set(i, uri); err != nil {
-			slog.Error("podcast config save failed", "bucket", i, "err", err)
+		uri := r.FormValue(fmt.Sprintf("bucket_%d", i))
+		if err := s.store.SetStation(i, mode, uri, ""); err != nil {
+			slog.Error("config: set station failed", "mode", mode, "bucket", i, "err", err)
 		}
 	}
 
-	http.Redirect(w, r, "/config/podcast", http.StatusSeeOther)
+	http.Redirect(w, r, redirectTo, http.StatusSeeOther)
 }
