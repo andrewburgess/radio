@@ -7,13 +7,16 @@ import (
 )
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	if !s.spotify.Auth().HasToken() {
+		s.render(w, "auth", "base", nil)
+		return
+	}
 	s.render(w, "index", "base", s.state.snapshot(s.cfg.BucketCount))
 }
 
-// handleAuth begins the Spotify OAuth flow by redirecting the user to the
-// Spotify authorization page. Visit /auth once after first launch to authorize
-// the application.
-func (s *Server) handleAuth(w http.ResponseWriter, r *http.Request) {
+// handleAuthStart begins the Spotify OAuth flow by redirecting the user to the
+// Spotify authorization page.
+func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {
 	authURL, err := s.spotify.Auth().AuthURL()
 	if err != nil {
 		slog.Error("failed to build Spotify auth URL", "err", err)

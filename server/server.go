@@ -29,7 +29,7 @@ type Server struct {
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus) (*Server, error) {
-	pages := []string{"index", "debug", "music", "podcast"}
+	pages := []string{"index", "auth", "debug", "music", "podcast"}
 	templates := make(map[string]*template.Template, len(pages))
 	for _, page := range pages {
 		tmpl, err := template.ParseFS(templateFS,
@@ -61,7 +61,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /", s.handleIndex)
-	s.mux.HandleFunc("GET /auth", s.handleAuth)
+	s.mux.HandleFunc("GET /auth", s.handleAuthStart)
 	s.mux.HandleFunc("GET /auth/callback", s.handleAuthCallback)
 	s.mux.HandleFunc("GET /config/music", s.handleMusicConfig)
 	s.mux.HandleFunc("POST /config/music", s.handleMusicConfigSave)
@@ -77,12 +77,12 @@ func (s *Server) registerRoutes() {
 // Requests to /auth and /auth/callback are always passed through.
 func (s *Server) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/auth" || r.URL.Path == "/auth/callback" {
+		if r.URL.Path == "/" || r.URL.Path == "/auth" || r.URL.Path == "/auth/callback" {
 			next.ServeHTTP(w, r)
 			return
 		}
 		if !s.spotify.Auth().HasToken() {
-			http.Redirect(w, r, "/auth", http.StatusFound)
+			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
 		next.ServeHTTP(w, r)

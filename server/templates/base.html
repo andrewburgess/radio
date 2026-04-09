@@ -48,6 +48,7 @@
             }
         </style>
         <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+        <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     </head>
     <body>
         <header>
@@ -60,6 +61,7 @@
             </nav>
         </header>
         <main>{{template "content" .}}</main>
+        <script>lucide.createIcons();</script>
     </body>
 </html>
 {{end}}
