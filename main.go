@@ -156,6 +156,8 @@ func forwardLibrespotEvents(in <-chan librespot.Event, bus *events.Bus) {
 				PositionMs: e.PositionMs,
 				TrackURI:   e.TrackID,
 			})
+		case librespot.EventEndOfTrack:
+			bus.Publish(events.Event{Kind: events.KindTrackEnded})
 		}
 	}
 }

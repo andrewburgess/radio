@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 
 	"andrewburgess.io/radio/events"
@@ -198,9 +199,15 @@ func (s *Server) runSSEPublisher() {
 	for e := range ch {
 		switch e.Kind {
 		case events.KindTrackChanged:
-			imageURL, err := s.spotify.GetTrackImage(context.Background(), e.TrackURI)
-			if err != nil {
-				slog.Warn("sse: fetch track image", "err", err)
+			var imageURL string
+			var imgErr error
+			if strings.HasPrefix(e.TrackURI, "spotify:episode:") {
+				imageURL, imgErr = s.spotify.GetEpisodeImage(context.Background(), e.TrackURI)
+			} else {
+				imageURL, imgErr = s.spotify.GetTrackImage(context.Background(), e.TrackURI)
+			}
+			if imgErr != nil {
+				slog.Warn("sse: fetch track image", "err", imgErr)
 			}
 			s.state.setArtworkURL(imageURL)
 			s.broker.publish(sseEventTrack, sseTrackPayload{

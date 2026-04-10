@@ -78,8 +78,8 @@ func (c *Client) GetDevices(ctx context.Context) ([]Device, error) {
 	return devices, nil
 }
 
-// Play starts playback of contextURI (a playlist or show URI) on deviceID,
-// beginning at track offsetIndex with an initial seek to positionMs.
+// Play starts playback of contextURI (a playlist URI) on deviceID, beginning
+// at track offsetIndex with an initial seek to positionMs.
 // If deviceID is empty, Spotify targets the currently active device.
 func (c *Client) Play(ctx context.Context, deviceID, contextURI string, offsetIndex, positionMs int) error {
 	path := "/me/player/play"
@@ -93,6 +93,25 @@ func (c *Client) Play(ctx context.Context, deviceID, contextURI string, offsetIn
 	}
 	if err := c.put(ctx, path, body); err != nil {
 		return fmt.Errorf("spotify: play: %w", err)
+	}
+	return nil
+}
+
+// PlayEpisode plays a single podcast episode URI directly at positionMs.
+// Spotify does not support episode playback via context_uri + offset, so
+// episodes must be played as a one-element uris list instead.
+// If deviceID is empty, Spotify targets the currently active device.
+func (c *Client) PlayEpisode(ctx context.Context, deviceID, episodeURI string, positionMs int) error {
+	path := "/me/player/play"
+	if deviceID != "" {
+		path += "?device_id=" + deviceID
+	}
+	body := map[string]any{
+		"uris":        []string{episodeURI},
+		"position_ms": positionMs,
+	}
+	if err := c.put(ctx, path, body); err != nil {
+		return fmt.Errorf("spotify: play episode: %w", err)
 	}
 	return nil
 }
@@ -299,6 +318,28 @@ func (c *Client) GetTrackImage(ctx context.Context, trackURI string) (string, er
 	}
 	if len(resp.Album.Images) > 0 {
 		return resp.Album.Images[0].URL, nil
+	}
+	return "", nil
+}
+
+// GetEpisodeImage returns the URL of the show art for a podcast episode,
+// preferring the largest available image. episodeURI may be a full Spotify
+// URI, web URL, or bare ID.
+func (c *Client) GetEpisodeImage(ctx context.Context, episodeURI string) (string, error) {
+	id := SpotifyID(episodeURI)
+	if id == "" {
+		return "", fmt.Errorf("spotify: invalid episode URI %q", episodeURI)
+	}
+	var resp struct {
+		Images []struct {
+			URL string `json:"url"`
+		} `json:"images"`
+	}
+	if err := c.get(ctx, "/episodes/"+id, &resp); err != nil {
+		return "", fmt.Errorf("spotify: get episode image: %w", err)
+	}
+	if len(resp.Images) > 0 {
+		return resp.Images[0].URL, nil
 	}
 	return "", nil
 }

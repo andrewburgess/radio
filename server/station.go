@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"andrewburgess.io/radio/events"
@@ -46,6 +47,12 @@ func (s *Server) runStationController() {
 				go s.switchStation(bucket, string(mode))
 			} else {
 				go s.stopPlayback()
+			}
+		case events.KindTrackEnded:
+			// Music playlists advance automatically via Spotify's context; podcast
+			// episodes are played as single URIs so we must advance manually.
+			if powered && mode == events.ModePodcast {
+				go s.switchStation(bucket, string(mode))
 			}
 		}
 	}
@@ -110,6 +117,7 @@ func (s *Server) switchStation(bucket int, mode string) {
 	}
 
 	trackIdx, posMs := radioTimeOffset(tracks)
+	trackURI := tracks[trackIdx].URI
 	slog.Info("station: switching",
 		"bucket", bucket, "mode", mode,
 		"uri", station.PlaylistURI,
@@ -117,8 +125,14 @@ func (s *Server) switchStation(bucket int, mode string) {
 		"track_idx", trackIdx, "pos_ms", posMs,
 	)
 
-	if err := s.spotify.Play(ctx, deviceID, station.PlaylistURI, trackIdx, posMs); err != nil {
-		slog.Error("station: play", "err", err)
+	var playErr error
+	if strings.HasPrefix(trackURI, "spotify:episode:") {
+		playErr = s.spotify.PlayEpisode(ctx, deviceID, trackURI, posMs)
+	} else {
+		playErr = s.spotify.Play(ctx, deviceID, station.PlaylistURI, trackIdx, posMs)
+	}
+	if playErr != nil {
+		slog.Error("station: play", "err", playErr)
 	}
 }
 
