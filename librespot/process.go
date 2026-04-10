@@ -71,6 +71,7 @@ type Event struct {
 type Config struct {
 	BinPath    string
 	DeviceName string
+	DeviceType string
 	CacheDir   string
 }
 
@@ -296,6 +297,7 @@ func (p *Process) launch() error {
 
 	cmd := exec.CommandContext(ctx, p.cfg.BinPath,
 		"--name", p.cfg.DeviceName,
+		"--device-type", p.cfg.DeviceType,
 		"--cache", p.cfg.CacheDir,
 		"--disable-audio-cache",
 		"--onevent", selfExe,

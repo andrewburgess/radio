@@ -58,6 +58,9 @@
                 <a href="/config/music">MUSIC</a>
                 <a href="/config/podcast">PODCAST</a>
                 <a href="/debug">DEBUG</a>
+                <form method="POST" action="/auth/logout" style="margin: 0 0 0 auto">
+                    <button type="submit" style="background: none; border: none; color: #555; font-family: monospace; font-size: 0.85rem; letter-spacing: 0.05em; cursor: pointer; padding: 0;">LOG OUT</button>
+                </form>
             </nav>
         </header>
         <main>{{template "content" .}}</main>

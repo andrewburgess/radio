@@ -66,6 +66,7 @@ func main() {
 	lp := librespot.New(librespot.Config{
 		BinPath:    cfg.LibrespotBin,
 		DeviceName: cfg.LibrespotDeviceName,
+		DeviceType: cfg.LibrespotDeviceType,
 		CacheDir:   cfg.LibrespotCacheDir,
 	})
 	if err := lp.Start(); err != nil {

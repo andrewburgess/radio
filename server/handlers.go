@@ -14,6 +14,16 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "index", "base", s.state.snapshot(s.cfg.BucketCount))
 }
 
+// handleAuthLogout clears the stored Spotify token and redirects to /.
+func (s *Server) handleAuthLogout(w http.ResponseWriter, r *http.Request) {
+	if err := s.spotify.Auth().Logout(); err != nil {
+		slog.Error("logout failed", "err", err)
+		http.Error(w, "logout failed", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 // handleAuthStart begins the Spotify OAuth flow by redirecting the user to the
 // Spotify authorization page.
 func (s *Server) handleAuthStart(w http.ResponseWriter, r *http.Request) {

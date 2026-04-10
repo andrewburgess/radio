@@ -142,6 +142,15 @@ func (s *Store) Load() (*spotify.Token, error) {
 	return &t, nil
 }
 
+// DeleteToken removes the stored token, effectively logging out.
+func (s *Store) DeleteToken() error {
+	_, err := s.db.Exec(`DELETE FROM tokens WHERE id = 1`)
+	if err != nil {
+		return fmt.Errorf("store: delete token: %w", err)
+	}
+	return nil
+}
+
 // Save upserts the token into the tokens table (always row id=1).
 func (s *Store) Save(t *spotify.Token) error {
 	_, err := s.db.Exec(`

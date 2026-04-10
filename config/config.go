@@ -13,6 +13,7 @@ type Config struct {
 	DBPath              string
 	LibrespotBin        string
 	LibrespotDeviceName string
+	LibrespotDeviceType string
 	LibrespotCacheDir   string
 	BucketCount         int
 	SpotifyClientID     string
@@ -74,6 +75,7 @@ func Load() (*Config, error) {
 		DBPath:              getEnv("DB_PATH", "radio.db"),
 		LibrespotBin:        getEnv("LIBRESPOT_BIN", "librespot"),
 		LibrespotDeviceName: getEnv("LIBRESPOT_DEVICE_NAME", "Zenith Radio"),
+		LibrespotDeviceType: getEnv("LIBRESPOT_DEVICE_TYPE", "speaker"),
 		LibrespotCacheDir:   getEnv("LIBRESPOT_CACHE_DIR", "librespot-cache"),
 	}
 
@@ -159,4 +161,3 @@ func getEnvFloat(key string, defaultVal float64) (float64, error) {
 	}
 	return f, nil
 }
-

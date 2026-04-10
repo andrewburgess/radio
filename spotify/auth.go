@@ -41,6 +41,7 @@ func (t *Token) valid() bool {
 type TokenStore interface {
 	Load() (*Token, error)
 	Save(*Token) error
+	DeleteToken() error
 }
 
 // FileTokenStore implements TokenStore using a JSON file on disk.
@@ -65,6 +66,14 @@ func (s *FileTokenStore) Load() (*Token, error) {
 		return nil, fmt.Errorf("spotify: parse token file: %w", err)
 	}
 	return &t, nil
+}
+
+func (s *FileTokenStore) DeleteToken() error {
+	err := os.Remove(s.path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 func (s *FileTokenStore) Save(t *Token) error {
@@ -107,6 +116,18 @@ func NewAuth(clientID, clientSecret, redirectURI string, store TokenStore) (*Aut
 		slog.Info("spotify: loaded persisted token", "expires_at", t.ExpiresAt)
 	}
 	return a, nil
+}
+
+// Logout clears the in-memory token and removes it from the store.
+// After this call HasToken returns false and the user must re-authorize.
+func (a *Auth) Logout() error {
+	if err := a.store.DeleteToken(); err != nil {
+		return err
+	}
+	a.mu.Lock()
+	a.token = nil
+	a.mu.Unlock()
+	return nil
 }
 
 // HasToken reports whether a token (possibly expired) is available. A true

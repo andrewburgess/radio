@@ -66,6 +66,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /auth", s.handleAuthStart)
+	s.mux.HandleFunc("POST /auth/logout", s.handleAuthLogout)
 	s.mux.HandleFunc("GET /auth/callback", s.handleAuthCallback)
 	s.mux.HandleFunc("GET /config/music", s.handleMusicConfig)
 	s.mux.HandleFunc("POST /config/music", s.handleMusicConfigSave)
