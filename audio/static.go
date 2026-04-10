@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"os/exec"
 	"runtime"
 	"sync"
@@ -159,14 +160,25 @@ func (s *Static) launch(stopCh <-chan struct{}) error {
 	return err
 }
 
+// randomSeekOffset returns a random seek position in seconds within
+// [0, maxOffsetSecs). Used to avoid always starting static audio at the
+// beginning of the file on each launch.
+const maxOffsetSecs = 120
+
+func randomSeekOffset() string {
+	return fmt.Sprintf("%d", rand.Intn(maxOffsetSecs))
+}
+
 // buildCommand returns the binary and arguments to launch for the configured
 // player. The binary may differ from s.cfg.Bin when a platform fallback is used.
+// A random -ss seek offset is applied for ffmpeg/ffplay so each launch starts
+// at a different point in the file.
 //
-//   - ffmpeg + ALSA sink:  ffmpeg -loglevel error -stream_loop -1 -i <file> -f alsa <sink>
-//   - ffmpeg + macOS:      ffplay -nodisp -loop 0 <file>  (loops natively, no gap)
-//   - ffplay:              ffplay -nodisp -loop 0 <file>
-//   - aplay:               aplay -q <file>  (supervisor loop provides looping)
-//   - afplay:              afplay <file>    (supervisor loop provides looping)
+//   - ffmpeg + ALSA sink:  ffmpeg -loglevel error -ss <offset> -stream_loop -1 -i <file> -f alsa <sink>
+//   - ffmpeg + macOS:      ffplay -nodisp -ss <offset> -loop 0 <file>
+//   - ffplay:              ffplay -nodisp -ss <offset> -loop 0 <file>
+//   - aplay:               aplay -q <file>  (no seek support; supervisor loop provides looping)
+//   - afplay:              afplay <file>    (no seek support; supervisor loop provides looping)
 func (s *Static) buildCommand() (string, []string) {
 	bin := s.cfg.Bin
 	// Normalise to just the binary name for matching (handles full paths).
@@ -177,17 +189,20 @@ func (s *Static) buildCommand() (string, []string) {
 		}
 	}
 
+	ss := randomSeekOffset()
+
 	switch bin {
 	case "aplay":
 		return s.cfg.Bin, []string{"-q", s.cfg.File}
 	case "afplay":
 		return s.cfg.Bin, []string{s.cfg.File}
 	case "ffplay":
-		return s.cfg.Bin, []string{"-nodisp", "-loglevel", "error", "-loop", "0", s.cfg.File}
+		return s.cfg.Bin, []string{"-nodisp", "-loglevel", "error", "-ss", ss, "-loop", "0", s.cfg.File}
 	default: // ffmpeg
 		if s.cfg.Sink != "" {
 			return s.cfg.Bin, []string{
 				"-loglevel", "error",
+				"-ss", ss,
 				"-stream_loop", "-1",
 				"-i", s.cfg.File,
 				"-f", "alsa", s.cfg.Sink,
@@ -195,11 +210,12 @@ func (s *Static) buildCommand() (string, []string) {
 		}
 		if runtime.GOOS == "darwin" {
 			// ffmpeg has no reliable macOS audio muxer; use ffplay which ships with it.
-			return "ffplay", []string{"-nodisp", "-loglevel", "error", "-loop", "0", s.cfg.File}
+			return "ffplay", []string{"-nodisp", "-loglevel", "error", "-ss", ss, "-loop", "0", s.cfg.File}
 		}
 		// Linux without a sink: return ffmpeg args as-is; caller must set STATIC_AUDIO_SINK.
 		return s.cfg.Bin, []string{
 			"-loglevel", "error",
+			"-ss", ss,
 			"-stream_loop", "-1",
 			"-i", s.cfg.File,
 		}
