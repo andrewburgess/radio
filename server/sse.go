@@ -175,12 +175,6 @@ func (s *Server) publishSnapshot(c *sseClient) {
 		}
 	}
 
-	send(sseEventTrack, sseTrackPayload{
-		Name:     snap.TrackName,
-		Artists:  snap.Artists,
-		ShowName: snap.ShowName,
-		ImageURL: snap.ArtworkURL,
-	})
 	send(sseEventPlayback, ssePlaybackPayload{Playing: snap.Playing})
 	send(sseEventStatic, sseStaticPayload{Playing: snap.StaticPlaying})
 	send(sseEventDial, sseDialPayload{Bucket: snap.Bucket})
@@ -188,6 +182,14 @@ func (s *Server) publishSnapshot(c *sseClient) {
 	send(sseEventPower, ssePowerPayload{On: snap.PowerOn})
 	send(sseEventVolume, sseVolumePayload{Volume: snap.Volume})
 	send(sseEventStation, sseStationPayload{Name: snap.StationName, ImageURL: snap.StationImageURL})
+	// Send track last so its artwork is never overwritten by mode/static handlers
+	// that call clearArtwork() as part of the snapshot replay.
+	send(sseEventTrack, sseTrackPayload{
+		Name:     snap.TrackName,
+		Artists:  snap.Artists,
+		ShowName: snap.ShowName,
+		ImageURL: snap.ArtworkURL,
+	})
 }
 
 // runSSEPublisher subscribes to the event bus and translates each event into
