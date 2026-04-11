@@ -76,9 +76,7 @@ func main() {
 	defer lp.Stop()
 
 	staticAudio := audio.NewStatic(audio.Config{
-		Bin:  cfg.StaticAudioBin,
-		File: cfg.StaticAudioFile,
-		Sink: cfg.StaticAudioSink,
+		Files: cfg.StaticAudioFiles,
 	})
 	// staticAudio.Start() / Stop() are called by station-switch logic (Phase 9).
 	// Ensure it is stopped on shutdown.

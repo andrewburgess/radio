@@ -21,9 +21,7 @@ type Config struct {
 	SpotifyRedirectURI  string
 
 	// Static audio
-	StaticAudioBin  string
-	StaticAudioFile string
-	StaticAudioSink string
+	StaticAudioFiles []string
 
 	// Hardware
 	DialI2CBus       string
@@ -102,10 +100,8 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: SPOTIFY_REDIRECT_URI is required")
 	}
 
-	// Static audio
-	cfg.StaticAudioBin  = getEnv("STATIC_AUDIO_BIN", "ffmpeg")
-	cfg.StaticAudioFile = getEnv("STATIC_AUDIO_FILE", "static/noise.mp3")
-	cfg.StaticAudioSink = os.Getenv("STATIC_AUDIO_SINK")
+	// Static audio — comma-separated list of MP3 file paths.
+	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
 
 	// Hardware
 	cfg.DialI2CBus      = getEnv("DIAL_I2C_BUS", "I2C1")
@@ -148,6 +144,24 @@ func getEnvInt(key string, defaultVal int) (int, error) {
 		return 0, fmt.Errorf("invalid integer %q", v)
 	}
 	return n, nil
+}
+
+func getEnvStringSlice(key string, defaultVal []string) []string {
+	v := os.Getenv(key)
+	if v == "" {
+		return defaultVal
+	}
+	parts := strings.Split(v, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	if len(out) == 0 {
+		return defaultVal
+	}
+	return out
 }
 
 func getEnvFloat(key string, defaultVal float64) (float64, error) {
