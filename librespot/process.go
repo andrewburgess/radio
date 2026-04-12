@@ -69,10 +69,11 @@ type Event struct {
 
 // Config holds the parameters needed to launch librespot.
 type Config struct {
-	BinPath    string
-	DeviceName string
-	DeviceType string
-	CacheDir   string
+	BinPath     string
+	DeviceName  string
+	DeviceType  string
+	CacheDir    string
+	AudioDevice string // ALSA device string, e.g. "plughw:CARD=Headphones,DEV=0"; empty = librespot default
 }
 
 // Process manages the librespot subprocess lifecycle.
@@ -295,13 +296,18 @@ func (p *Process) launch() error {
 		return fmt.Errorf("librespot: resolve executable path: %w", err)
 	}
 
-	cmd := exec.CommandContext(ctx, p.cfg.BinPath,
+	args := []string{
 		"--name", p.cfg.DeviceName,
 		"--device-type", p.cfg.DeviceType,
 		"--cache", p.cfg.CacheDir,
 		"--disable-audio-cache",
+		"--enable-oauth",
 		"--onevent", selfExe,
-	)
+	}
+	if p.cfg.AudioDevice != "" {
+		args = append(args, "--device", p.cfg.AudioDevice)
+	}
+	cmd := exec.CommandContext(ctx, p.cfg.BinPath, args...)
 
 	// Inherit the current environment and add the TCP address so that event
 	// forwarder subprocesses know where to connect.

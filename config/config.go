@@ -11,10 +11,11 @@ import (
 type Config struct {
 	Port                string
 	DBPath              string
-	LibrespotBin        string
-	LibrespotDeviceName string
-	LibrespotDeviceType string
-	LibrespotCacheDir   string
+	LibrespotBin         string
+	LibrespotDeviceName  string
+	LibrespotDeviceType  string
+	LibrespotCacheDir    string
+	LibrespotAudioDevice string
 	BucketCount         int
 	SpotifyClientID     string
 	SpotifyClientSecret string
@@ -71,10 +72,11 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Port:                getEnv("PORT", "8080"),
 		DBPath:              getEnv("DB_PATH", "radio.db"),
-		LibrespotBin:        getEnv("LIBRESPOT_BIN", "librespot"),
-		LibrespotDeviceName: getEnv("LIBRESPOT_DEVICE_NAME", "Zenith Radio"),
-		LibrespotDeviceType: getEnv("LIBRESPOT_DEVICE_TYPE", "speaker"),
-		LibrespotCacheDir:   getEnv("LIBRESPOT_CACHE_DIR", "librespot-cache"),
+		LibrespotBin:         getEnv("LIBRESPOT_BIN", "librespot"),
+		LibrespotDeviceName:  getEnv("LIBRESPOT_DEVICE_NAME", "Zenith Radio"),
+		LibrespotDeviceType:  getEnv("LIBRESPOT_DEVICE_TYPE", "speaker"),
+		LibrespotCacheDir:    getEnv("LIBRESPOT_CACHE_DIR", "librespot-cache"),
+		LibrespotAudioDevice: getEnv("LIBRESPOT_AUDIO_DEVICE", ""),
 	}
 
 	var err error

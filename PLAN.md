@@ -7,7 +7,7 @@ frequency buckets. Each bucket can be assigned a Spotify playlist — music or
 podcast, both are just playlist URIs. Unassigned buckets play audio static to
 simulate no signal. The AM/FM toggle switches between two sets of station
 mappings (music vs. podcast). Audio playback is handled by librespot; static
-audio is played via a separate ffmpeg/aplay process.
+audio is played directly by the Go process using oto + go-mp3.
 
 ---
 
@@ -75,10 +75,11 @@ audio is played via a separate ffmpeg/aplay process.
   stored; the current position is always derived from
   `now % total_playlist_duration`.
 - **Static audio (no-signal buckets)**: When the dial lands on an unassigned
-  bucket, librespot is paused and a local static audio file is played in a loop
-  via a managed ffmpeg (or aplay) subprocess. When leaving a static bucket, the
-  static process is killed and librespot resumes for the new station. A static
-  audio file must be bundled with the application.
+  bucket, librespot is paused and a local MP3 file is played in a loop directly
+  by the Go process using `oto` and `go-mp3` — no external subprocess required.
+  A random file is chosen from `STATIC_AUDIO_FILES` each time a static bucket is
+  entered and looped until the bucket changes. When leaving a static bucket,
+  playback is stopped and librespot resumes for the new station.
 - **Podcast mode**: Podcast buckets are just Spotify playlist URIs — Spotify's
   "prompted playlists" feature supports podcasts and handles episode refresh on
   a schedule. The AM/FM toggle signals which set of station mappings to use;
@@ -104,7 +105,7 @@ audio is played via a separate ffmpeg/aplay process.
 | Database           | SQLite via `modernc.org/sqlite` | Pure Go, no CGO required                                                   |
 | Spotify playback   | librespot                       | Managed subprocess                                                         |
 | Spotify control    | Spotify Web API                 | REST calls from Go using Authorization Code tokens                         |
-| Static audio       | ffmpeg or aplay                 | Managed subprocess, plays local static file on loop for unassigned buckets |
+| Static audio       | `oto` + `go-mp3`                | Pure-Go MP3 playback; random file selection and looping handled in-process |
 | Podcast scheduling | Go `time.AfterFunc` / ticker    | Built-in, no external cron daemon needed                                   |
 
 ---
@@ -130,7 +131,7 @@ radio/
 │   └── process.go           # Subprocess management, stdout event parsing, restart logic
 │
 ├── audio/
-│   └── static.go            # ffmpeg/aplay subprocess: play static file on loop, stop on demand
+│   └── static.go            # oto+go-mp3: loop a random MP3 in-process for no-signal buckets
 │
 ├── spotify/
 │   ├── auth.go              # Authorization Code flow, token storage, refresh
@@ -219,12 +220,15 @@ functional before starting the next.
 
 ### Phase 5 — Static Audio
 
-- Implement `audio.Static`: managed ffmpeg (or aplay) subprocess that plays the
-  bundled `noise.mp3` on loop with automatic restart on unexpected exit
+- Implement `audio.Static`: pure-Go MP3 player using `oto` (audio output) and
+  `go-mp3` (decoding) that loops a randomly selected file until stopped
 - Expose `Start()`, `Stop()`, and `IsPlaying()` methods
-- Player is configurable via `STATIC_AUDIO_BIN` (default `ffmpeg`),
-  `STATIC_AUDIO_FILE` (default `static/noise.mp3`), and `STATIC_AUDIO_SINK`
-  (ALSA device e.g. `hw:0`; empty = auto, suitable for macOS dev)
+- Player is configurable via `STATIC_AUDIO_FILES` (comma-separated list of MP3
+  paths; default `static/noise.mp3`) — a random entry is chosen each time
+  `Start()` is called; playback begins at a random offset so each session sounds
+  different
+- No external binary required — oto targets the system's default audio device;
+  the same binary runs on macOS (dev) and Linux/ALSA (Pi) without configuration
 - `audio.Static` is initialised in `main.go`; `Start()`/`Stop()` are called by
   station-switch logic in Phase 9
 - Station-switch logic (Phase 9): if new bucket is unassigned →
@@ -372,8 +376,8 @@ and make the binary production-ready.
 - **librespot version**: v0.8.0. Events delivered via `--onevent` env vars; full
   event reference at https://github.com/librespot-org/librespot/wiki/Events.
 - **Static audio file**: A suitable looping static/noise audio file needs to be
-  sourced or generated and bundled with the repo. Format should be compatible
-  with aplay (WAV) or ffmpeg (anything).
+  sourced or generated and bundled with the repo. Must be MP3 (decoded by
+  go-mp3); multiple files can be listed in `STATIC_AUDIO_FILES` for variety.
 
 ---
 

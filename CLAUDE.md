@@ -104,8 +104,11 @@ Do not create files outside this structure without a good reason.
 
 ## Important Constraints
 
-- **No CGO**: `modernc.org/sqlite` only — the binary must cross-compile for
-  `GOARCH=arm64 GOOS=linux` from a development machine.
+- **Native Pi build required**: the `audio` package uses `oto`, which links
+  against ALSA via CGO (`libasound2-dev` must be installed). Build directly on
+  the Pi with `CGO_ENABLED=1 go build -tags pi`. Cross-compilation is not the
+  recommended path. SQLite uses `modernc.org/sqlite` (pure Go) so the rest of
+  the binary has no CGO requirements beyond audio.
 - **No runtime config changes**: bucket count is fixed at startup from env;
   never allow it to change while the server is running.
 - **Radio time is stateless**: current playback position is always derived from
@@ -126,11 +129,11 @@ Do not create files outside this structure without a good reason.
 | `DB_PATH`               | Path to SQLite database file                              | `radio.db`            |
 | `LIBRESPOT_BIN`         | Path to librespot binary                                  | `librespot`           |
 | `LIBRESPOT_DEVICE_NAME` | Spotify Connect device name                               | `Zenith Radio`        |
+| `LIBRESPOT_DEVICE_TYPE` | Spotify Connect device type (e.g. `speaker`)              | `speaker`             |
 | `LIBRESPOT_CACHE_DIR`   | Directory for librespot credential/file cache             | `librespot-cache`     |
+| `LIBRESPOT_AUDIO_DEVICE`| ALSA device for librespot output (e.g. `plughw:CARD=Headphones,DEV=0`); empty = librespot default | `""` |
 | `BUCKET_COUNT`          | Number of dial stations                                   | `12`                  |
-| `STATIC_AUDIO_BIN`      | Binary for looping static audio (`ffmpeg`/`aplay`)        | `ffmpeg`              |
-| `STATIC_AUDIO_FILE`     | Path to the static noise audio file                       | `static/noise.mp3`    |
-| `STATIC_AUDIO_SINK`     | ALSA output device for ffmpeg (e.g. `hw:0`); empty = auto | `""`                  |
+| `STATIC_AUDIO_FILES`    | Comma-separated list of MP3 files for no-signal playback  | `static/noise.mp3`    |
 | `SPOTIFY_CLIENT_ID`     | Spotify app client ID                                     | required              |
 | `SPOTIFY_CLIENT_SECRET` | Spotify app client secret                                 | required              |
 | `SPOTIFY_REDIRECT_URI`  | OAuth redirect URI for auth code flow                     | required              |

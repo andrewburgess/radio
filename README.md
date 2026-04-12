@@ -7,23 +7,39 @@ radio cabinet. See [PLAN.md](PLAN.md) for the full architecture and build plan.
 
 ## Deploying to the Pi
 
-### 1. Cross-compile the radio binary
+The `radio` binary uses CGO (via `oto` for direct ALSA audio output), so it
+must be built natively on the Pi. Cross-compilation requires a full ARM64 CGO
+toolchain and is not the recommended path.
 
-From your dev machine:
-
-```sh
-GOOS=linux GOARCH=arm64 go build -o radio-linux-arm64 .
-```
-
-### 2. Copy files to the Pi
+### 1. Install build dependencies (once)
 
 ```sh
-scp radio-linux-arm64 pi@<pi-ip>:~/radio/radio
-scp bin/librespot-linux-arm64 pi@<pi-ip>:~/radio/librespot
-ssh pi@<pi-ip> chmod +x ~/radio/radio ~/radio/librespot
+sudo apt-get install -y golang libasound2-dev
 ```
 
-### 3. Configure
+`libasound2-dev` provides the ALSA headers that `oto` links against.
+
+### 2. Build on the Pi
+
+```sh
+cd ~/radio
+CGO_ENABLED=1 go build -tags pi -o radio .
+```
+
+> **Note:** `CGO_ENABLED=1` is explicit here because some environments (e.g.
+> shell sessions that previously set `CGO_ENABLED=0`) may default to 0. CGO is
+> required for the ALSA audio backend (`oto`).
+
+### 3. Copy the librespot binary
+
+Pre-built for Pi 4 (ARM64) and checked in under `bin/`:
+
+```sh
+cp bin/librespot-linux-arm64 ~/radio/librespot
+chmod +x ~/radio/librespot
+```
+
+### 4. Configure
 
 Create `~/radio/.env` on the Pi (use `.env.example` as a template):
 
@@ -40,7 +56,7 @@ SPOTIFY_REDIRECT_URI=http://<pi-ip>:8080/auth/callback
 > `SPOTIFY_REDIRECT_URI` must exactly match the URI registered in your
 > [Spotify app settings](https://developer.spotify.com/dashboard).
 
-### 4. Run
+### 5. Run
 
 ```sh
 cd ~/radio && ./radio
@@ -50,7 +66,7 @@ On first run, visit `http://<pi-ip>:8080/auth` in a browser to complete the
 Spotify OAuth flow. Credentials are cached in `LIBRESPOT_CACHE_DIR` and
 refreshed automatically after that.
 
-### 5. How librespot events work
+### 6. How librespot events work
 
 The `radio` binary doubles as the librespot `--onevent` handler. When librespot
 fires a playback event it spawns `radio` with event data in env vars; the binary
@@ -70,7 +86,9 @@ LIBRESPOT_BIN=./bin/librespot-darwin-amd64 go run .
 ```
 
 Hardware-dependent packages (`hardware/`) only work on the Pi. All other
-packages compile and run on macOS/Linux/Windows.
+packages compile and run on macOS/Linux/Windows. On macOS, `oto` uses CoreAudio
+via `purego` (no CGO needed); on Linux outside the Pi, `libasound2-dev` and
+`CGO_ENABLED=1` are required.
 
 ---
 

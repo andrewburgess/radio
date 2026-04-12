@@ -64,10 +64,11 @@ func main() {
 	spotifyClient := spotify.NewClient(auth)
 
 	lp := librespot.New(librespot.Config{
-		BinPath:    cfg.LibrespotBin,
-		DeviceName: cfg.LibrespotDeviceName,
-		DeviceType: cfg.LibrespotDeviceType,
-		CacheDir:   cfg.LibrespotCacheDir,
+		BinPath:     cfg.LibrespotBin,
+		DeviceName:  cfg.LibrespotDeviceName,
+		DeviceType:  cfg.LibrespotDeviceType,
+		CacheDir:    cfg.LibrespotCacheDir,
+		AudioDevice: cfg.LibrespotAudioDevice,
 	})
 	if err := lp.Start(); err != nil {
 		slog.Error("failed to start librespot", "err", err)
