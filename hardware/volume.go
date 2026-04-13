@@ -23,25 +23,35 @@ const (
 )
 
 // Volume reads the volume potentiometer via the MCP3008 ADC over SPI,
-// maps the value to 0–100%, applies hysteresis to avoid thrashing amixer,
+// maps the value to 0–maxPct%, applies hysteresis to avoid thrashing amixer,
 // and publishes KindVolumeChanged events.
+//
+// minRaw/maxRaw calibrate the physical pot range (the raw ADC values at the
+// fully-down and fully-up positions). maxPct caps the output so full rotation
+// doesn't blow out the speakers.
 type Volume struct {
 	bus         *events.Bus
 	spiDev      string
 	spiChannel  int
 	alsaControl string
+	minRaw      int
+	maxRaw      int
+	maxPct      int
 
 	mu      sync.Mutex
 	stopCh  chan struct{}
 	stopped bool
 }
 
-func NewVolume(bus *events.Bus, spiDev string, spiChannel int, alsaControl string) *Volume {
+func NewVolume(bus *events.Bus, spiDev string, spiChannel int, alsaControl string, minRaw, maxRaw, maxPct int) *Volume {
 	return &Volume{
 		bus:         bus,
 		spiDev:      spiDev,
 		spiChannel:  spiChannel,
 		alsaControl: alsaControl,
+		minRaw:      minRaw,
+		maxRaw:      maxRaw,
+		maxPct:      maxPct,
 		stopCh:      make(chan struct{}),
 	}
 }
@@ -96,7 +106,7 @@ func (v *Volume) poll(conn spi.Conn, port interface{ Close() error }) {
 				continue
 			}
 
-			pct := raw * 100 / mcp3008MaxValue
+			pct := v.rawToPct(raw)
 			if abs(pct-lastPct) < volumeHysteresis {
 				continue
 			}
@@ -109,6 +119,23 @@ func (v *Volume) poll(conn spi.Conn, port interface{ Close() error }) {
 			slog.Debug("volume: changed", "pct", pct)
 		}
 	}
+}
+
+// rawToPct maps a raw ADC value to a volume percentage using the calibrated
+// range [minRaw, maxRaw] and caps the result at maxPct.
+func (v *Volume) rawToPct(raw int) int {
+	span := v.maxRaw - v.minRaw
+	if span <= 0 {
+		return 0
+	}
+	norm := float64(raw-v.minRaw) / float64(span)
+	if norm < 0 {
+		norm = 0
+	}
+	if norm > 1 {
+		norm = 1
+	}
+	return int(norm * float64(v.maxPct))
 }
 
 // readADC reads the configured MCP3008 channel using the standard 3-byte SPI

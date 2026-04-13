@@ -35,6 +35,9 @@ type Config struct {
 	PowerGPIOPin     string
 	VolumeSPIDev     string
 	VolumeSPIChannel int
+	VolumeMinRaw     int
+	VolumeMaxRaw     int
+	VolumeMaxPct     int
 	AlsaMixerControl string
 }
 
@@ -128,6 +131,18 @@ func Load() (*Config, error) {
 	cfg.VolumeSPIChannel, err = getEnvInt("VOLUME_SPI_CHANNEL", 0)
 	if err != nil {
 		return nil, fmt.Errorf("config: VOLUME_SPI_CHANNEL: %w", err)
+	}
+	cfg.VolumeMinRaw, err = getEnvInt("VOLUME_MIN_RAW", 0)
+	if err != nil {
+		return nil, fmt.Errorf("config: VOLUME_MIN_RAW: %w", err)
+	}
+	cfg.VolumeMaxRaw, err = getEnvInt("VOLUME_MAX_RAW", 1023)
+	if err != nil {
+		return nil, fmt.Errorf("config: VOLUME_MAX_RAW: %w", err)
+	}
+	cfg.VolumeMaxPct, err = getEnvInt("VOLUME_MAX_PCT", 80)
+	if err != nil {
+		return nil, fmt.Errorf("config: VOLUME_MAX_PCT: %w", err)
 	}
 
 	return cfg, nil

@@ -10,7 +10,7 @@ type Volume struct {
 	bus *events.Bus
 }
 
-func NewVolume(bus *events.Bus, spiDev string, spiChannel int, alsaControl string) *Volume {
+func NewVolume(bus *events.Bus, spiDev string, spiChannel int, alsaControl string, minRaw, maxRaw, maxPct int) *Volume {
 	return &Volume{bus: bus}
 }
 

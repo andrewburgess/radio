@@ -94,7 +94,7 @@ func main() {
 		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialMinAngle, cfg.DialMaxAngle),
 		hardware.NewToggle(bus, cfg.ToggleGPIOPinA, cfg.ToggleGPIOPinB),
 		hardware.NewPower(bus, cfg.PowerGPIOPin),
-		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaMixerControl),
+		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaMixerControl, cfg.VolumeMinRaw, cfg.VolumeMaxRaw, cfg.VolumeMaxPct),
 	}
 	for _, w := range watchers {
 		if err := w.Start(); err != nil {

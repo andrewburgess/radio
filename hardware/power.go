@@ -17,8 +17,7 @@ import (
 const powerPollInterval = 100 * time.Millisecond
 
 // Power reads the volume knob's integrated power switch GPIO pin and publishes
-// KindPowerChanged events.
-// High = power on, Low = power off. TODO: verify polarity on hardware.
+// KindPowerChanged events. Low = power on (switch closes to GND), High = off.
 type Power struct {
 	bus     *events.Bus
 	pinName string
@@ -50,7 +49,7 @@ func (p *Power) Start() error {
 	}
 
 	// Emit initial state immediately.
-	initial := pin.Read() == gpio.High
+	initial := pin.Read() == gpio.Low
 	p.bus.Publish(events.Event{Kind: events.KindPowerChanged, PowerOn: initial})
 
 	go p.poll(pin)
@@ -84,7 +83,7 @@ func (p *Power) poll(pin gpio.PinIn) {
 			}
 			last = level
 
-			on := level == gpio.High
+			on := level == gpio.Low
 			p.bus.Publish(events.Event{Kind: events.KindPowerChanged, PowerOn: on})
 			slog.Info("power: state changed", "on", on)
 		}
