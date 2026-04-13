@@ -87,6 +87,9 @@ func (s *Server) switchStation(bucket int, mode string) {
 			slog.Debug("station: pause before static", "err", err)
 		}
 		s.amp.Unmute()
+		// Always restart static on bucket changes so each empty station seeks
+		// to a new random position (and may pick a different file).
+		s.staticAudio.Stop()
 		s.staticAudio.Start()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
 		return
