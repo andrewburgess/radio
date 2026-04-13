@@ -77,16 +77,18 @@ type Config struct {
 }
 
 // Process manages the librespot subprocess lifecycle.
+// Start and Stop may be called multiple times to bring the process up and down
+// with the radio power switch.
 type Process struct {
-	cfg      Config
-	eventAddr string // TCP address the event listener is bound to
-	Events   chan Event
+	cfg       Config
+	Events    chan Event
 
-	mu       sync.Mutex
-	cancel   context.CancelFunc
-	listener net.Listener
-	stopCh   chan struct{}
-	stopped  bool
+	mu        sync.Mutex
+	cancel    context.CancelFunc
+	listener  net.Listener
+	eventAddr string
+	stopCh    chan struct{}
+	running   bool
 }
 
 // New creates a Process. Call Start to launch librespot.
@@ -100,10 +102,22 @@ func New(cfg Config) *Process {
 
 // Start kills any leftover librespot process from a previous run, opens the
 // event listener, then launches librespot in the background.
-// It returns immediately; use Stop to shut down.
+// It returns immediately; use Stop to shut down. Safe to call again after Stop.
 func (p *Process) Start() error {
+	p.mu.Lock()
+	if p.running {
+		p.mu.Unlock()
+		return nil
+	}
+	p.stopCh = make(chan struct{})
+	p.running = true
+	p.mu.Unlock()
+
 	p.killLeftover()
 	if err := p.startListener(); err != nil {
+		p.mu.Lock()
+		p.running = false
+		p.mu.Unlock()
 		return fmt.Errorf("librespot: event socket: %w", err)
 	}
 	go p.run()
@@ -166,20 +180,21 @@ func (p *Process) removePidFile() {
 }
 
 // Stop signals librespot to shut down and closes the event socket.
-// It is safe to call more than once.
+// Safe to call more than once. After Stop, Start may be called again.
 func (p *Process) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.stopped {
+	if !p.running {
 		return
 	}
-	p.stopped = true
+	p.running = false
 	close(p.stopCh)
 	if p.cancel != nil {
 		p.cancel()
 	}
 	if p.listener != nil {
 		p.listener.Close()
+		p.listener = nil
 	}
 }
 

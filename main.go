@@ -63,18 +63,16 @@ func main() {
 	}
 	spotifyClient := spotify.NewClient(auth)
 
-	lp := librespot.New(librespot.Config{
+	librespotProc := librespot.New(librespot.Config{
 		BinPath:     cfg.LibrespotBin,
 		DeviceName:  cfg.LibrespotDeviceName,
 		DeviceType:  cfg.LibrespotDeviceType,
 		CacheDir:    cfg.LibrespotCacheDir,
 		AudioDevice: cfg.LibrespotAudioDevice,
 	})
-	if err := lp.Start(); err != nil {
-		slog.Error("failed to start librespot", "err", err)
-		os.Exit(1)
-	}
-	defer lp.Stop()
+	// librespot is started/stopped by the station controller in response to
+	// power events. Stop on shutdown as a safety net.
+	defer librespotProc.Stop()
 
 	staticAudio := audio.NewStatic(audio.Config{
 		Files: cfg.StaticAudioFiles,
@@ -84,7 +82,7 @@ func main() {
 	defer staticAudio.Stop()
 
 	bus := events.New()
-	go forwardLibrespotEvents(lp.Events, bus)
+	go forwardLibrespotEvents(librespotProc.Events, bus)
 
 	amp := hardware.NewAmp(cfg.AmpGPIOPin)
 	if err := amp.Start(); err != nil {
@@ -106,7 +104,7 @@ func main() {
 		defer w.Stop()
 	}
 
-	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio, amp)
+	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio, amp, librespotProc)
 	if err != nil {
 		slog.Error("failed to create server", "err", err)
 		os.Exit(1)

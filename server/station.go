@@ -33,7 +33,7 @@ func (s *Server) runStationController() {
 		switch e.Kind {
 		case events.KindDialMoved:
 			bucket = e.Bucket
-			if powered {
+			if powered && mode != events.ModeSpeaker {
 				go s.switchStation(bucket, string(mode))
 			}
 		case events.KindToggleSwitched:
@@ -49,7 +49,14 @@ func (s *Server) runStationController() {
 		case events.KindPowerChanged:
 			powered = e.PowerOn
 			if powered {
-				go s.switchStation(bucket, string(mode))
+				if err := s.librespot.Start(); err != nil {
+					slog.Error("station: start librespot", "err", err)
+				}
+				if mode == events.ModeSpeaker {
+					go s.enterSpeakerMode()
+				} else {
+					go s.switchStation(bucket, string(mode))
+				}
 			} else {
 				go s.stopPlayback()
 			}
@@ -188,7 +195,8 @@ func (s *Server) enterSpeakerMode() {
 	slog.Info("station: speaker mode — radio control suspended")
 }
 
-// stopPlayback pauses Spotify, stops static audio, and mutes the amp.
+// stopPlayback pauses Spotify, stops static audio, mutes the amp, and shuts
+// down librespot so the device disappears from Spotify Connect.
 func (s *Server) stopPlayback() {
 	s.staticAudio.Stop()
 	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
@@ -196,6 +204,7 @@ func (s *Server) stopPlayback() {
 		slog.Debug("station: pause on power off", "err", err)
 	}
 	s.amp.Mute()
+	s.librespot.Stop()
 }
 
 // radioTimeOffset computes (trackIndex, positionMs) for "radio time": the

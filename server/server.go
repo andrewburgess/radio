@@ -24,6 +24,13 @@ type AmpController interface {
 	Unmute()
 }
 
+// LibrespotController abstracts the librespot process so the station controller
+// can start and stop it with the power switch.
+type LibrespotController interface {
+	Start() error
+	Stop()
+}
+
 type Server struct {
 	cfg         *config.Config
 	mux         *http.ServeMux
@@ -34,11 +41,12 @@ type Server struct {
 	bus         *events.Bus
 	staticAudio *audio.Static
 	amp         AmpController
+	librespot   LibrespotController
 	state       *radioState
 	broker      *sseBroker
 }
 
-func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController) (*Server, error) {
+func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController, librespot LibrespotController) (*Server, error) {
 	pages := []string{"index", "auth", "debug", "music", "podcast"}
 	templates := make(map[string]*template.Template, len(pages))
 	for _, page := range pages {
@@ -61,6 +69,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 		bus:         bus,
 		staticAudio: staticAudio,
 		amp:         amp,
+		librespot:   librespot,
 		state:       newRadioState(),
 		broker:      newSSEBroker(),
 	}
