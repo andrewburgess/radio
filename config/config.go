@@ -38,6 +38,8 @@ type Config struct {
 	VolumeMinRaw     int
 	VolumeMaxRaw     int
 	VolumeMaxPct     int
+	VolumeCurve      float64
+	AlsaCard         string
 	AlsaMixerControl string
 }
 
@@ -118,7 +120,8 @@ func Load() (*Config, error) {
 	cfg.ToggleGPIOPinB  = getEnv("TOGGLE_GPIO_PIN_B", "GPIO18")
 	cfg.PowerGPIOPin    = getEnv("POWER_GPIO_PIN", "GPIO27")
 	cfg.VolumeSPIDev    = getEnv("VOLUME_SPI_DEV", "SPI0.0")
-	cfg.AlsaMixerControl = getEnv("ALSA_MIXER_CONTROL", "Master")
+	cfg.AlsaCard         = getEnv("ALSA_CARD", "Headphones")
+	cfg.AlsaMixerControl = getEnv("ALSA_MIXER_CONTROL", "PCM")
 
 	cfg.DialMinAngle, err = getEnvFloat("DIAL_MIN_ANGLE", 0)
 	if err != nil {
@@ -143,6 +146,10 @@ func Load() (*Config, error) {
 	cfg.VolumeMaxPct, err = getEnvInt("VOLUME_MAX_PCT", 80)
 	if err != nil {
 		return nil, fmt.Errorf("config: VOLUME_MAX_PCT: %w", err)
+	}
+	cfg.VolumeCurve, err = getEnvFloat("VOLUME_CURVE", 0.5)
+	if err != nil {
+		return nil, fmt.Errorf("config: VOLUME_CURVE: %w", err)
 	}
 
 	return cfg, nil

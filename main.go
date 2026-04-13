@@ -89,12 +89,21 @@ func main() {
 		slog.Error("failed to start amp", "err", err)
 		os.Exit(1)
 	}
+	defer amp.Mute()
+
+	// Create the server (and subscribe to the bus) before starting hardware
+	// watchers so the station controller catches the initial power-on event.
+	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio, amp, librespotProc)
+	if err != nil {
+		slog.Error("failed to create server", "err", err)
+		os.Exit(1)
+	}
 
 	watchers := []hardware.Watcher{
 		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialMinAngle, cfg.DialMaxAngle),
 		hardware.NewToggle(bus, cfg.ToggleGPIOPinA, cfg.ToggleGPIOPinB),
 		hardware.NewPower(bus, cfg.PowerGPIOPin),
-		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaMixerControl, cfg.VolumeMinRaw, cfg.VolumeMaxRaw, cfg.VolumeMaxPct),
+		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaCard, cfg.AlsaMixerControl, cfg.VolumeMinRaw, cfg.VolumeMaxRaw, cfg.VolumeMaxPct, cfg.VolumeCurve),
 	}
 	for _, w := range watchers {
 		if err := w.Start(); err != nil {
@@ -104,17 +113,17 @@ func main() {
 		defer w.Stop()
 	}
 
-	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio, amp, librespotProc)
-	if err != nil {
-		slog.Error("failed to create server", "err", err)
-		os.Exit(1)
-	}
-
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-quit
 		slog.Info("shutting down")
+
+		// Publish a power-off event so the station controller runs its normal
+		// shutdown path (stop playback, mute amp, stop librespot) before we
+		// tear down the HTTP server.
+		bus.Publish(events.Event{Kind: events.KindPowerChanged, PowerOn: false})
+		time.Sleep(500 * time.Millisecond) // allow stopPlayback to complete
 
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

@@ -22,8 +22,12 @@ type Config struct {
 // Static manages looping MP3 playback for no-signal buckets. A random file is
 // chosen from the list when Start is called and played on repeat until Stop is
 // called. The next call to Start picks a new random file.
+//
+// The oto audio context is created once on the first Start and reused for all
+// subsequent Start/Stop cycles — oto only permits one context per process.
 type Static struct {
-	cfg Config
+	cfg    Config
+	otoCtx *oto.Context // created once, reused across Start/Stop cycles
 
 	mu      sync.Mutex
 	playing bool
@@ -48,6 +52,16 @@ func (s *Static) Start() {
 	if file == "" {
 		slog.Warn("static audio: no files configured")
 		return
+	}
+
+	// Initialise the oto context once — subsequent calls reuse it.
+	if s.otoCtx == nil {
+		ctx, err := s.initOto(file)
+		if err != nil {
+			slog.Error("static audio: init oto", "err", err)
+			return
+		}
+		s.otoCtx = ctx
 	}
 
 	stopCh := make(chan struct{})
@@ -76,6 +90,31 @@ func (s *Static) IsPlaying() bool {
 	return s.playing
 }
 
+// initOto opens file to read the sample rate, then creates the oto context.
+func (s *Static) initOto(file string) (*oto.Context, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	dec, err := mp3.NewDecoder(f)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
+		SampleRate:   dec.SampleRate(),
+		ChannelCount: 2,
+		Format:       oto.FormatSignedInt16LE,
+	})
+	if err != nil {
+		return nil, err
+	}
+	<-ready
+	return ctx, nil
+}
+
 // pickFile returns a random file from cfg.Files, or "" if the list is empty.
 // Must be called with s.mu held.
 func (s *Static) pickFile() string {
@@ -85,7 +124,7 @@ func (s *Static) pickFile() string {
 	return s.cfg.Files[rand.Intn(len(s.cfg.Files))]
 }
 
-// run opens file, creates the oto context, and loops playback until stopCh is closed.
+// run opens file and loops playback until stopCh is closed.
 func (s *Static) run(file string, stopCh <-chan struct{}) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -106,25 +145,11 @@ func (s *Static) run(file string, stopCh <-chan struct{}) {
 		return
 	}
 
-	ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
-		SampleRate:   dec.SampleRate(),
-		ChannelCount: 2,
-		Format:       oto.FormatSignedInt16LE,
-	})
-	if err != nil {
-		slog.Error("static audio: create oto context", "err", err)
-		s.mu.Lock()
-		s.playing = false
-		s.mu.Unlock()
-		return
-	}
-	<-ready
-	defer ctx.Suspend()
-
 	// Start at a random position so each session sounds different.
 	seekRandom(dec)
 
-	player := ctx.NewPlayer(dec)
+	player := s.otoCtx.NewPlayer(dec)
+	defer player.Close()
 	player.Play()
 	slog.Info("static audio started", "file", file)
 
@@ -144,27 +169,25 @@ func (s *Static) run(file string, stopCh <-chan struct{}) {
 					slog.Error("static audio: seek on loop", "err", err)
 					return
 				}
-				player = ctx.NewPlayer(dec)
+				player.Close()
+				player = s.otoCtx.NewPlayer(dec)
 				player.Play()
 			}
 		}
 	}
 }
 
-// seekRandom seeks the decoder to a random position within the first
-// maxOffsetSecs seconds of audio so each session starts at a different point.
-const maxOffsetSecs = 120
-
+// seekRandom seeks the decoder to a random position anywhere within the file
+// so each session starts at a different point.
 func seekRandom(dec *mp3.Decoder) {
 	const bytesPerFrame = 4 // 2 channels × 2 bytes (int16)
-	maxOffset := int64(maxOffsetSecs * dec.SampleRate() * bytesPerFrame)
 
 	total := dec.Length()
-	if total <= 0 || maxOffset >= total {
+	if total <= 0 {
 		return
 	}
 
-	offset := rand.Int63n(maxOffset)
+	offset := rand.Int63n(total)
 	offset -= offset % bytesPerFrame // align to frame boundary
 
 	if _, err := dec.Seek(offset, io.SeekStart); err != nil {

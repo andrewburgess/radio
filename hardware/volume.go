@@ -5,6 +5,7 @@ package hardware
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"os/exec"
 	"sync"
 	"time"
@@ -17,9 +18,10 @@ import (
 )
 
 const (
-	volumePollInterval = 100 * time.Millisecond
-	volumeHysteresis   = 2   // minimum % change before calling amixer
-	mcp3008MaxValue    = 1023 // 10-bit ADC
+	volumePollInterval  = 100 * time.Millisecond
+	volumeHysteresis    = 3   // minimum % change before calling amixer
+	volumeWindowSize    = 8   // rolling average window to smooth ADC noise
+	mcp3008MaxValue     = 1023 // 10-bit ADC
 )
 
 // Volume reads the volume potentiometer via the MCP3008 ADC over SPI,
@@ -33,25 +35,29 @@ type Volume struct {
 	bus         *events.Bus
 	spiDev      string
 	spiChannel  int
+	alsaCard    string
 	alsaControl string
 	minRaw      int
 	maxRaw      int
 	maxPct      int
+	curve       float64 // power curve exponent: <1 front-loads ramp, 1.0 = linear
 
 	mu      sync.Mutex
 	stopCh  chan struct{}
 	stopped bool
 }
 
-func NewVolume(bus *events.Bus, spiDev string, spiChannel int, alsaControl string, minRaw, maxRaw, maxPct int) *Volume {
+func NewVolume(bus *events.Bus, spiDev string, spiChannel int, alsaCard, alsaControl string, minRaw, maxRaw, maxPct int, curve float64) *Volume {
 	return &Volume{
 		bus:         bus,
 		spiDev:      spiDev,
 		spiChannel:  spiChannel,
+		alsaCard:    alsaCard,
 		alsaControl: alsaControl,
 		minRaw:      minRaw,
 		maxRaw:      maxRaw,
 		maxPct:      maxPct,
+		curve:       curve,
 		stopCh:      make(chan struct{}),
 	}
 }
@@ -122,7 +128,8 @@ func (v *Volume) poll(conn spi.Conn, port interface{ Close() error }) {
 }
 
 // rawToPct maps a raw ADC value to a volume percentage using the calibrated
-// range [minRaw, maxRaw] and caps the result at maxPct.
+// range [minRaw, maxRaw], applies a power curve, and caps the result at maxPct.
+// curve < 1.0 front-loads the ramp (e.g. 0.5 = square root); 1.0 = linear.
 func (v *Volume) rawToPct(raw int) int {
 	span := v.maxRaw - v.minRaw
 	if span <= 0 {
@@ -135,7 +142,8 @@ func (v *Volume) rawToPct(raw int) int {
 	if norm > 1 {
 		norm = 1
 	}
-	return int(norm * float64(v.maxPct))
+	curved := math.Pow(norm, v.curve)
+	return int(curved * float64(v.maxPct))
 }
 
 // readADC reads the configured MCP3008 channel using the standard 3-byte SPI
@@ -157,7 +165,7 @@ func (v *Volume) readADC(conn spi.Conn) (int, error) {
 // setAlsaVolume calls amixer to set the hardware mixer volume.
 func (v *Volume) setAlsaVolume(pct int) error {
 	arg := fmt.Sprintf("%d%%", pct)
-	cmd := exec.Command("amixer", "sset", v.alsaControl, arg)
+	cmd := exec.Command("amixer", "-c", v.alsaCard, "sset", v.alsaControl, arg)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("amixer: %w: %s", err, out)
 	}

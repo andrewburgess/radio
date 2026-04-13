@@ -84,11 +84,15 @@ func (t *Toggle) Stop() {
 	close(t.stopCh)
 }
 
+const toggleDebounceN = 5 // mode must be stable for this many polls before emitting (~500ms)
+
 func (t *Toggle) poll(pinA, pinB gpio.PinIn) {
 	ticker := time.NewTicker(togglePollInterval)
 	defer ticker.Stop()
 
 	last := events.Mode("") // sentinel: emit on first read
+	candidate := events.Mode("")
+	stable := 0
 
 	for {
 		select {
@@ -96,12 +100,17 @@ func (t *Toggle) poll(pinA, pinB gpio.PinIn) {
 			return
 		case <-ticker.C:
 			mode := readToggleMode(pinA, pinB)
-			if mode == last {
-				continue
+			if mode == candidate {
+				stable++
+			} else {
+				candidate = mode
+				stable = 1
 			}
-			last = mode
-			t.bus.Publish(events.Event{Kind: events.KindToggleSwitched, Mode: mode})
-			slog.Debug("toggle: switched", "mode", mode)
+			if stable >= toggleDebounceN && mode != last {
+				last = mode
+				t.bus.Publish(events.Event{Kind: events.KindToggleSwitched, Mode: mode})
+				slog.Debug("toggle: switched", "mode", mode)
+			}
 		}
 	}
 }

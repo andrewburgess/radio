@@ -183,16 +183,11 @@ func (s *Server) findDevice(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("device %q not found after %d attempts", s.cfg.LibrespotDeviceName, attempts)
 }
 
-// enterSpeakerMode stops radio-controlled playback and unmutes the amp so
-// Spotify Connect (phone/tablet) can drive the speaker directly.
+// enterSpeakerMode suspends radio tuning control without interrupting playback.
+// Whatever is currently playing continues; the dial is ignored until the toggle
+// leaves AFC position.
 func (s *Server) enterSpeakerMode() {
-	s.staticAudio.Stop()
-	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
-	if err := s.spotify.Pause(context.Background(), ""); err != nil {
-		slog.Debug("station: pause before speaker mode", "err", err)
-	}
-	s.amp.Unmute()
-	slog.Info("station: speaker mode — radio control suspended")
+	slog.Info("station: speaker mode — tuning suspended, playback unchanged")
 }
 
 // stopPlayback pauses Spotify, stops static audio, mutes the amp, and shuts
