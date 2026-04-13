@@ -27,6 +27,7 @@ type Mode string
 const (
 	ModeMusic   Mode = "music"
 	ModePodcast Mode = "podcast"
+	ModeSpeaker Mode = "speaker" // AFC position: librespot runs passively, dial ignored
 )
 
 // Event carries a single bus event and its associated payload.

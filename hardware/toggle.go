@@ -9,29 +9,44 @@ import (
 	"time"
 
 	"andrewburgess.io/radio/events"
-	"periph.io/x/periph/conn/gpio"
-	"periph.io/x/periph/conn/gpio/gpioreg"
-	"periph.io/x/periph/host"
+	"periph.io/x/conn/v3/gpio"
+	"periph.io/x/conn/v3/gpio/gpioreg"
+	"periph.io/x/host/v3"
 )
 
 const togglePollInterval = 100 * time.Millisecond
 
-// Toggle reads the AM/FM GPIO pin and publishes KindToggleSwitched events.
-// High = music mode, Low = podcast mode. TODO: verify polarity on hardware.
+// Toggle reads the AM/AFC/FM 3-position switch using two GPIO pins and
+// publishes KindToggleSwitched events.
+//
+// Wiring (one column of the shorting-bar switch):
+//
+//	Row 1 → GND
+//	Row 2 → pinA (pull-up)
+//	Row 3 → pinB (pull-up)
+//	Row 4 → GND
+//
+// Position → GPIO state → Mode:
+//
+//	AM  (rows 1+2 bridged): A=LOW,  B=HIGH → ModePodcast
+//	AFC (rows 2+3 bridged): A=HIGH, B=HIGH → ModeSpeaker
+//	FM  (rows 3+4 bridged): A=HIGH, B=LOW  → ModeMusic
 type Toggle struct {
-	bus     *events.Bus
-	pinName string
+	bus      *events.Bus
+	pinNameA string
+	pinNameB string
 
 	mu      sync.Mutex
 	stopCh  chan struct{}
 	stopped bool
 }
 
-func NewToggle(bus *events.Bus, gpioPin string) *Toggle {
+func NewToggle(bus *events.Bus, pinA, pinB string) *Toggle {
 	return &Toggle{
-		bus:     bus,
-		pinName: gpioPin,
-		stopCh:  make(chan struct{}),
+		bus:      bus,
+		pinNameA: pinA,
+		pinNameB: pinB,
+		stopCh:   make(chan struct{}),
 	}
 }
 
@@ -40,15 +55,22 @@ func (t *Toggle) Start() error {
 		return fmt.Errorf("toggle: periph host init: %w", err)
 	}
 
-	pin := gpioreg.ByName(t.pinName)
-	if pin == nil {
-		return fmt.Errorf("toggle: GPIO pin %q not found", t.pinName)
+	pinA := gpioreg.ByName(t.pinNameA)
+	if pinA == nil {
+		return fmt.Errorf("toggle: GPIO pin %q not found", t.pinNameA)
 	}
-	if err := pin.In(gpio.PullUp, gpio.NoEdge); err != nil {
-		return fmt.Errorf("toggle: configure pin %q: %w", t.pinName, err)
+	pinB := gpioreg.ByName(t.pinNameB)
+	if pinB == nil {
+		return fmt.Errorf("toggle: GPIO pin %q not found", t.pinNameB)
 	}
 
-	go t.poll(pin)
+	for _, p := range []gpio.PinIn{pinA, pinB} {
+		if err := p.In(gpio.PullUp, gpio.NoEdge); err != nil {
+			return fmt.Errorf("toggle: configure pin: %w", err)
+		}
+	}
+
+	go t.poll(pinA, pinB)
 	return nil
 }
 
@@ -62,29 +84,39 @@ func (t *Toggle) Stop() {
 	close(t.stopCh)
 }
 
-func (t *Toggle) poll(pin gpio.PinIn) {
+func (t *Toggle) poll(pinA, pinB gpio.PinIn) {
 	ticker := time.NewTicker(togglePollInterval)
 	defer ticker.Stop()
 
-	last := gpio.High // start with an invalid sentinel so we emit on first read
+	last := events.Mode("") // sentinel: emit on first read
 
 	for {
 		select {
 		case <-t.stopCh:
 			return
 		case <-ticker.C:
-			level := pin.Read()
-			if level == last {
+			mode := readToggleMode(pinA, pinB)
+			if mode == last {
 				continue
 			}
-			last = level
-
-			mode := events.ModeMusic
-			if level == gpio.Low {
-				mode = events.ModePodcast
-			}
+			last = mode
 			t.bus.Publish(events.Event{Kind: events.KindToggleSwitched, Mode: mode})
 			slog.Debug("toggle: switched", "mode", mode)
 		}
 	}
+}
+
+// readToggleMode determines the switch position from pins A and B.
+//
+//	A=LOW            → AM  → ModePodcast
+//	A=HIGH, B=LOW    → FM  → ModeMusic
+//	A=HIGH, B=HIGH   → AFC → ModeSpeaker
+func readToggleMode(pinA, pinB gpio.PinIn) events.Mode {
+	if pinA.Read() == gpio.Low {
+		return events.ModePodcast
+	}
+	if pinB.Read() == gpio.Low {
+		return events.ModeMusic
+	}
+	return events.ModeSpeaker
 }

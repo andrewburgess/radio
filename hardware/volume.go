@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"andrewburgess.io/radio/events"
-	"periph.io/x/periph/conn/spi"
-	"periph.io/x/periph/conn/spi/spireg"
-	"periph.io/x/periph/host"
+	"periph.io/x/conn/v3/physic"
+	"periph.io/x/conn/v3/spi"
+	"periph.io/x/conn/v3/spi/spireg"
+	"periph.io/x/host/v3"
 )
 
 const (
@@ -56,7 +57,7 @@ func (v *Volume) Start() error {
 	}
 
 	// MCP3008: 1 MHz, SPI Mode 0, 8 bits per word.
-	conn, err := port.Connect(1_000_000, spi.Mode0, 8)
+	conn, err := port.Connect(physic.MegaHertz, spi.Mode0, 8)
 	if err != nil {
 		port.Close()
 		return fmt.Errorf("volume: connect SPI: %w", err)

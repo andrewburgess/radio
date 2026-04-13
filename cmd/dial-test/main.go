@@ -104,69 +104,73 @@ func main() {
 	// Give the sensor a moment to complete its first conversion.
 	time.Sleep(50 * time.Millisecond)
 
-	// Dump all registers so we can verify the layout.
-	fmt.Println("\nRegister dump (0x00–0x1C):")
+	// Quick sanity check on DEVICE_STATUS.
 	all := make([]byte, 0x1D)
-	if err := dev.Tx([]byte{0x00}, all); err != nil {
-		fmt.Fprintf(os.Stderr, "register dump failed: %v\n", err)
-	} else {
-		for i, v := range all {
-			fmt.Printf("  0x%02X: 0x%02X\n", i, v)
+	if err := dev.Tx([]byte{0x00}, all); err == nil {
+		ds := all[0x1C]
+		if ds&0x10 != 0 {
+			fmt.Fprintln(os.Stderr, "WARNING: OTP CRC error (DEVICE_STATUS bit 4)")
 		}
 	}
-	// Decode DEVICE_STATUS (0x1C).
-	ds := all[0x1C]
-	fmt.Printf("DEVICE_STATUS (0x1C): 0x%02X\n", ds)
-	if ds&0x10 != 0 {
-		fmt.Println("  WARNING: bit 4 set — possible OTP CRC error (sensor may be damaged)")
-	}
-	if ds&0x02 != 0 {
-		fmt.Println("  WARNING: bit 1 set — oscillator error")
-	}
-	if ds&0x01 != 0 {
-		fmt.Println("  WARNING: bit 0 set — diagnostic error")
-	}
 	fmt.Println()
+	fmt.Printf("%-8s  %-8s  %-8s  %-12s  %-10s\n", "X", "Y", "Z", "atan2(X,Y)°", "onboard°")
+	fmt.Println("--------  --------  --------  ------------  ----------")
 
 	fmt.Println("Reading TMAG5273 — spin the dial and watch the values.")
-	fmt.Printf("%-8s  %-8s  %-8s  %-12s  %-10s  %s\n", "X", "Y", "Z", "atan2(X,Y)°", "onboard°", "conv")
-	fmt.Println("--------  --------  --------  ------------  ----------  ----")
+
+	const windowSize = 5
+	type sample struct {
+		x, y, z int16
+		onboard  float64
+	}
+	window := make([]sample, 0, windowSize)
 
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		conv := make([]byte, 1)
-		dev.Tx([]byte{regConvStatus}, conv)
-
 		x, err := readInt16(dev, regXMSB)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "read X: %v\n", err)
 			continue
 		}
 		y, err := readInt16(dev, regYMSB)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "read Y: %v\n", err)
 			continue
 		}
 		z, err := readInt16(dev, regZMSB)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "read Z: %v\n", err)
 			continue
 		}
-
 		onboard, err := readOnboardAngle(dev)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "read angle: %v\n", err)
 			continue
 		}
 
-		atan2deg := math.Atan2(float64(x), float64(y)) * 180 / math.Pi
+		if len(window) >= windowSize {
+			window = window[1:]
+		}
+		window = append(window, sample{x, y, z, onboard})
+
+		var sumX, sumY, sumZ int64
+		var sumOnboard float64
+		for _, s := range window {
+			sumX += int64(s.x)
+			sumY += int64(s.y)
+			sumZ += int64(s.z)
+			sumOnboard += s.onboard
+		}
+		n := float64(len(window))
+		avgX := float64(sumX) / n
+		avgY := float64(sumY) / n
+		avgZ := float64(sumZ) / n
+		avgOnboard := sumOnboard / n
+
+		atan2deg := math.Atan2(avgX, avgY) * 180 / math.Pi
 		if atan2deg < 0 {
 			atan2deg += 360
 		}
 
-		fmt.Printf("%-8d  %-8d  %-8d  %-12.1f  %-10.1f  0x%02X\n", x, y, z, atan2deg, onboard, conv[0])
+		fmt.Printf("\r%-8.0f  %-8.0f  %-8.0f  %-12.1f  %-10.1f", avgX, avgY, avgZ, atan2deg, avgOnboard)
 	}
 }
 

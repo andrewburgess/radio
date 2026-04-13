@@ -88,7 +88,7 @@ func main() {
 
 	watchers := []hardware.Watcher{
 		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialMinAngle, cfg.DialMaxAngle),
-		hardware.NewToggle(bus, cfg.ToggleGPIOPin),
+		hardware.NewToggle(bus, cfg.ToggleGPIOPinA, cfg.ToggleGPIOPinB),
 		hardware.NewPower(bus, cfg.PowerGPIOPin),
 		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaMixerControl),
 	}

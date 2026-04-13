@@ -29,7 +29,8 @@ type Config struct {
 	DialI2CAddr      string
 	DialMinAngle     float64
 	DialMaxAngle     float64
-	ToggleGPIOPin    string
+	ToggleGPIOPinA   string // Row 2 → AM/music
+	ToggleGPIOPinB   string // Row 3 → AFC/speaker or FM/podcast
 	PowerGPIOPin     string
 	VolumeSPIDev     string
 	VolumeSPIChannel int
@@ -108,7 +109,8 @@ func Load() (*Config, error) {
 	// Hardware
 	cfg.DialI2CBus      = getEnv("DIAL_I2C_BUS", "I2C1")
 	cfg.DialI2CAddr     = getEnv("DIAL_I2C_ADDR", "0x22")
-	cfg.ToggleGPIOPin   = getEnv("TOGGLE_GPIO_PIN", "GPIO17")
+	cfg.ToggleGPIOPinA  = getEnv("TOGGLE_GPIO_PIN_A", "GPIO17")
+	cfg.ToggleGPIOPinB  = getEnv("TOGGLE_GPIO_PIN_B", "GPIO18")
 	cfg.PowerGPIOPin    = getEnv("POWER_GPIO_PIN", "GPIO27")
 	cfg.VolumeSPIDev    = getEnv("VOLUME_SPI_DEV", "SPI0.0")
 	cfg.AlsaMixerControl = getEnv("ALSA_MIXER_CONTROL", "Master")

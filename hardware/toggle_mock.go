@@ -10,7 +10,7 @@ type Toggle struct {
 	bus *events.Bus
 }
 
-func NewToggle(bus *events.Bus, gpioPin string) *Toggle {
+func NewToggle(bus *events.Bus, pinA, pinB string) *Toggle {
 	return &Toggle{bus: bus}
 }
 
