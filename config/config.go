@@ -9,17 +9,17 @@ import (
 )
 
 type Config struct {
-	Port                string
-	DBPath              string
+	Port                 string
+	DBPath               string
 	LibrespotBin         string
 	LibrespotDeviceName  string
 	LibrespotDeviceType  string
 	LibrespotCacheDir    string
 	LibrespotAudioDevice string
-	BucketCount         int
-	SpotifyClientID     string
-	SpotifyClientSecret string
-	SpotifyRedirectURI  string
+	BucketCount          int
+	SpotifyClientID      string
+	SpotifyClientSecret  string
+	SpotifyRedirectURI   string
 
 	// Static audio
 	StaticAudioFiles []string
@@ -77,8 +77,8 @@ func Load() (*Config, error) {
 	loadDotEnv()
 
 	cfg := &Config{
-		Port:                getEnv("PORT", "8080"),
-		DBPath:              getEnv("DB_PATH", "radio.db"),
+		Port:                 getEnv("PORT", "8080"),
+		DBPath:               getEnv("DB_PATH", "radio.db"),
 		LibrespotBin:         getEnv("LIBRESPOT_BIN", "librespot"),
 		LibrespotDeviceName:  getEnv("LIBRESPOT_DEVICE_NAME", "Zenith Radio"),
 		LibrespotDeviceType:  getEnv("LIBRESPOT_DEVICE_TYPE", "speaker"),
@@ -92,7 +92,6 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("config: BUCKET_COUNT: %w", err)
 	}
-
 
 	cfg.SpotifyClientID = os.Getenv("SPOTIFY_CLIENT_ID")
 	if cfg.SpotifyClientID == "" {
@@ -113,14 +112,14 @@ func Load() (*Config, error) {
 	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
 
 	// Hardware
-	cfg.AmpGPIOPin      = getEnv("AMP_GPIO_PIN", "GPIO26")
-	cfg.DialI2CBus      = getEnv("DIAL_I2C_BUS", "I2C1")
-	cfg.DialI2CAddr     = getEnv("DIAL_I2C_ADDR", "0x22")
-	cfg.ToggleGPIOPinA  = getEnv("TOGGLE_GPIO_PIN_A", "GPIO17")
-	cfg.ToggleGPIOPinB  = getEnv("TOGGLE_GPIO_PIN_B", "GPIO18")
-	cfg.PowerGPIOPin    = getEnv("POWER_GPIO_PIN", "GPIO27")
-	cfg.VolumeSPIDev    = getEnv("VOLUME_SPI_DEV", "SPI0.0")
-	cfg.AlsaCard         = getEnv("ALSA_CARD", "Headphones")
+	cfg.AmpGPIOPin = getEnv("AMP_GPIO_PIN", "GPIO26")
+	cfg.DialI2CBus = getEnv("DIAL_I2C_BUS", "I2C1")
+	cfg.DialI2CAddr = getEnv("DIAL_I2C_ADDR", "0x22")
+	cfg.ToggleGPIOPinA = getEnv("TOGGLE_GPIO_PIN_A", "GPIO17")
+	cfg.ToggleGPIOPinB = getEnv("TOGGLE_GPIO_PIN_B", "GPIO18")
+	cfg.PowerGPIOPin = getEnv("POWER_GPIO_PIN", "GPIO27")
+	cfg.VolumeSPIDev = getEnv("VOLUME_SPI_DEV", "SPI0.0")
+	cfg.AlsaCard = getEnv("ALSA_CARD", "Headphones")
 	cfg.AlsaMixerControl = getEnv("ALSA_MIXER_CONTROL", "PCM")
 
 	cfg.DialMinAngle, err = getEnvFloat("DIAL_MIN_ANGLE", 0)

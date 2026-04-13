@@ -18,10 +18,10 @@ import (
 )
 
 const (
-	volumePollInterval  = 100 * time.Millisecond
-	volumeHysteresis    = 3   // minimum % change before calling amixer
-	volumeWindowSize    = 8   // rolling average window to smooth ADC noise
-	mcp3008MaxValue     = 1023 // 10-bit ADC
+	volumePollInterval = 100 * time.Millisecond
+	volumeHysteresis   = 3    // minimum % change before calling amixer
+	volumeWindowSize   = 8    // rolling average window to smooth ADC noise
+	mcp3008MaxValue    = 1023 // 10-bit ADC
 )
 
 // Volume reads the volume potentiometer via the MCP3008 ADC over SPI,

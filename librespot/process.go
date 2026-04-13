@@ -80,8 +80,8 @@ type Config struct {
 // Start and Stop may be called multiple times to bring the process up and down
 // with the radio power switch.
 type Process struct {
-	cfg       Config
-	Events    chan Event
+	cfg    Config
+	Events chan Event
 
 	mu        sync.Mutex
 	cancel    context.CancelFunc

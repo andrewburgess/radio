@@ -173,4 +173,3 @@ func forwardLibrespotEvents(in <-chan librespot.Event, bus *events.Bus) {
 		}
 	}
 }
-

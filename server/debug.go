@@ -23,18 +23,18 @@ type eventEntry struct {
 // bus. It is updated by the server's bus subscriber goroutine and read by the
 // debug and (later) SSE handlers.
 type radioState struct {
-	mu            sync.RWMutex
-	bucket        int
-	mode          events.Mode
-	powerOn       bool
-	volume        int
-	playing       bool
-	staticPlaying bool
-	trackName     string
-	artists       string
-	showName      string
-	trackURI      string
-	album         string
+	mu              sync.RWMutex
+	bucket          int
+	mode            events.Mode
+	powerOn         bool
+	volume          int
+	playing         bool
+	staticPlaying   bool
+	trackName       string
+	artists         string
+	showName        string
+	trackURI        string
+	album           string
 	artworkURL      string
 	stationName     string
 	stationImageURL string
@@ -52,22 +52,22 @@ func newRadioState() *radioState {
 // stateSnapshot is a lock-free copy of radioState used for template rendering
 // and SSE initial snapshots.
 type stateSnapshot struct {
-	Bucket         int
-	Mode           events.Mode
-	PowerOn        bool
-	Volume         int
-	Playing        bool
-	StaticPlaying  bool
-	TrackName      string
-	Artists        string
-	ShowName       string
-	TrackURI       string
-	Album          string
+	Bucket          int
+	Mode            events.Mode
+	PowerOn         bool
+	Volume          int
+	Playing         bool
+	StaticPlaying   bool
+	TrackName       string
+	Artists         string
+	ShowName        string
+	TrackURI        string
+	Album           string
 	ArtworkURL      string
 	StationName     string
 	StationImageURL string
 	RecentEvents    []eventEntry
-	BucketMaxIndex int
+	BucketMaxIndex  int
 }
 
 func (rs *radioState) snapshot(bucketCount int) stateSnapshot {
@@ -76,22 +76,22 @@ func (rs *radioState) snapshot(bucketCount int) stateSnapshot {
 	ev := make([]eventEntry, len(rs.recentEvents))
 	copy(ev, rs.recentEvents)
 	return stateSnapshot{
-		Bucket:         rs.bucket,
-		Mode:           rs.mode,
-		PowerOn:        rs.powerOn,
-		Volume:         rs.volume,
-		Playing:        rs.playing,
-		StaticPlaying:  rs.staticPlaying,
-		TrackName:      rs.trackName,
-		Artists:        rs.artists,
-		ShowName:       rs.showName,
-		TrackURI:       rs.trackURI,
-		Album:          rs.album,
+		Bucket:          rs.bucket,
+		Mode:            rs.mode,
+		PowerOn:         rs.powerOn,
+		Volume:          rs.volume,
+		Playing:         rs.playing,
+		StaticPlaying:   rs.staticPlaying,
+		TrackName:       rs.trackName,
+		Artists:         rs.artists,
+		ShowName:        rs.showName,
+		TrackURI:        rs.trackURI,
+		Album:           rs.album,
 		ArtworkURL:      rs.artworkURL,
 		StationName:     rs.stationName,
 		StationImageURL: rs.stationImageURL,
-		RecentEvents:   ev,
-		BucketMaxIndex: bucketCount - 1,
+		RecentEvents:    ev,
+		BucketMaxIndex:  bucketCount - 1,
 	}
 }
 
@@ -219,4 +219,3 @@ func (s *Server) handleDebugSimulate(w http.ResponseWriter, r *http.Request) {
 	time.Sleep(10 * time.Millisecond)
 	s.render(w, "debug", "debug-state-poll", s.state.snapshot(s.cfg.BucketCount))
 }
-

@@ -9,16 +9,16 @@ import (
 type Kind int
 
 const (
-	KindTrackChanged        Kind = iota
-	KindPlaybackStateChanged     // playing or paused
-	KindDialMoved                // dial settled on a new bucket
-	KindToggleSwitched           // AM/FM toggle changed mode
-	KindStaticStarted            // static audio began playing
-	KindStaticStopped            // static audio stopped
-	KindPowerChanged             // radio turned on or off via volume knob switch
-	KindVolumeChanged            // volume pot position changed (0–100)
-	KindStationChanged           // tuned to a new station (name/image resolved)
-	KindTrackEnded               // librespot reported end_of_track
+	KindTrackChanged         Kind = iota
+	KindPlaybackStateChanged      // playing or paused
+	KindDialMoved                 // dial settled on a new bucket
+	KindToggleSwitched            // AM/FM toggle changed mode
+	KindStaticStarted             // static audio began playing
+	KindStaticStopped             // static audio stopped
+	KindPowerChanged              // radio turned on or off via volume knob switch
+	KindVolumeChanged             // volume pot position changed (0–100)
+	KindStationChanged            // tuned to a new station (name/image resolved)
+	KindTrackEnded                // librespot reported end_of_track
 )
 
 // Mode represents the AM/FM toggle position.

@@ -58,7 +58,6 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusFound)
 }
 
-
 // handleMusicConfig renders the music configuration page.
 func (s *Server) handleMusicConfig(w http.ResponseWriter, r *http.Request) {
 	s.renderStationConfig(w, r, "music")
