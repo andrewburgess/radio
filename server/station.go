@@ -39,7 +39,12 @@ func (s *Server) runStationController() {
 		case events.KindToggleSwitched:
 			mode = e.Mode
 			if powered {
-				go s.switchStation(bucket, string(mode))
+				if mode == events.ModeSpeaker {
+					// AFC position: hand off to Spotify Connect passively.
+					go s.enterSpeakerMode()
+				} else {
+					go s.switchStation(bucket, string(mode))
+				}
 			}
 		case events.KindPowerChanged:
 			powered = e.PowerOn
@@ -74,6 +79,7 @@ func (s *Server) switchStation(bucket int, mode string) {
 		if err := s.spotify.Pause(ctx, ""); err != nil {
 			slog.Debug("station: pause before static", "err", err)
 		}
+		s.amp.Unmute()
 		s.staticAudio.Start()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
 		return
@@ -125,6 +131,8 @@ func (s *Server) switchStation(bucket int, mode string) {
 		"track_idx", trackIdx, "pos_ms", posMs,
 	)
 
+	s.amp.Unmute()
+
 	var playErr error
 	if strings.HasPrefix(trackURI, "spotify:episode:") {
 		playErr = s.spotify.PlayEpisode(ctx, deviceID, trackURI, posMs)
@@ -168,13 +176,26 @@ func (s *Server) findDevice(ctx context.Context) (string, error) {
 	return "", fmt.Errorf("device %q not found after %d attempts", s.cfg.LibrespotDeviceName, attempts)
 }
 
-// stopPlayback pauses Spotify and stops static audio.
+// enterSpeakerMode stops radio-controlled playback and unmutes the amp so
+// Spotify Connect (phone/tablet) can drive the speaker directly.
+func (s *Server) enterSpeakerMode() {
+	s.staticAudio.Stop()
+	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
+	if err := s.spotify.Pause(context.Background(), ""); err != nil {
+		slog.Debug("station: pause before speaker mode", "err", err)
+	}
+	s.amp.Unmute()
+	slog.Info("station: speaker mode — radio control suspended")
+}
+
+// stopPlayback pauses Spotify, stops static audio, and mutes the amp.
 func (s *Server) stopPlayback() {
 	s.staticAudio.Stop()
 	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
 	if err := s.spotify.Pause(context.Background(), ""); err != nil {
 		slog.Debug("station: pause on power off", "err", err)
 	}
+	s.amp.Mute()
 }
 
 // radioTimeOffset computes (trackIndex, positionMs) for "radio time": the

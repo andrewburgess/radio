@@ -86,6 +86,12 @@ func main() {
 	bus := events.New()
 	go forwardLibrespotEvents(lp.Events, bus)
 
+	amp := hardware.NewAmp(cfg.AmpGPIOPin)
+	if err := amp.Start(); err != nil {
+		slog.Error("failed to start amp", "err", err)
+		os.Exit(1)
+	}
+
 	watchers := []hardware.Watcher{
 		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialMinAngle, cfg.DialMaxAngle),
 		hardware.NewToggle(bus, cfg.ToggleGPIOPinA, cfg.ToggleGPIOPinB),
@@ -100,7 +106,7 @@ func main() {
 		defer w.Stop()
 	}
 
-	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio)
+	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio, amp)
 	if err != nil {
 		slog.Error("failed to create server", "err", err)
 		os.Exit(1)

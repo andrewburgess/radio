@@ -25,6 +25,7 @@ type Config struct {
 	StaticAudioFiles []string
 
 	// Hardware
+	AmpGPIOPin       string
 	DialI2CBus       string
 	DialI2CAddr      string
 	DialMinAngle     float64
@@ -107,6 +108,7 @@ func Load() (*Config, error) {
 	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
 
 	// Hardware
+	cfg.AmpGPIOPin      = getEnv("AMP_GPIO_PIN", "GPIO26")
 	cfg.DialI2CBus      = getEnv("DIAL_I2C_BUS", "I2C1")
 	cfg.DialI2CAddr     = getEnv("DIAL_I2C_ADDR", "0x22")
 	cfg.ToggleGPIOPinA  = getEnv("TOGGLE_GPIO_PIN_A", "GPIO17")

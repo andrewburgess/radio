@@ -17,6 +17,13 @@ import (
 //go:embed templates/*
 var templateFS embed.FS
 
+// AmpController abstracts the amplifier SD pin so the server doesn't depend
+// on the hardware package directly.
+type AmpController interface {
+	Mute()
+	Unmute()
+}
+
 type Server struct {
 	cfg         *config.Config
 	mux         *http.ServeMux
@@ -26,11 +33,12 @@ type Server struct {
 	store       *store.Store
 	bus         *events.Bus
 	staticAudio *audio.Static
+	amp         AmpController
 	state       *radioState
 	broker      *sseBroker
 }
 
-func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static) (*Server, error) {
+func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController) (*Server, error) {
 	pages := []string{"index", "auth", "debug", "music", "podcast"}
 	templates := make(map[string]*template.Template, len(pages))
 	for _, page := range pages {
@@ -52,6 +60,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 		store:       db,
 		bus:         bus,
 		staticAudio: staticAudio,
+		amp:         amp,
 		state:       newRadioState(),
 		broker:      newSSEBroker(),
 	}
