@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 )
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -76,6 +77,38 @@ func (s *Server) handlePodcastConfig(w http.ResponseWriter, r *http.Request) {
 // handlePodcastConfigSave processes form submission from the podcast config page.
 func (s *Server) handlePodcastConfigSave(w http.ResponseWriter, r *http.Request) {
 	s.saveStationConfig(w, r, "podcast", "/config/podcast")
+}
+
+// handleAPIPlaylists returns an HTML fragment with the user's Spotify playlists.
+// The offset query parameter controls pagination (default 0, page size 20).
+// offset=0 renders the initial layout; offset>0 renders items+OOB load-more only.
+func (s *Server) handleAPIPlaylists(w http.ResponseWriter, r *http.Request) {
+	const pageSize = 50
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	playlists, total, err := s.spotify.GetUserPlaylists(r.Context(), offset, pageSize)
+	if err != nil {
+		slog.Error("api: get user playlists", "err", err)
+		http.Error(w, "failed to fetch playlists", http.StatusInternalServerError)
+		return
+	}
+
+	nextOffset := offset + pageSize
+	tmplName := "playlist-initial"
+	if offset > 0 {
+		tmplName = "playlist-items"
+	}
+
+	s.render(w, "playlist-picker", tmplName, map[string]any{
+		"Playlists":  playlists,
+		"HasMore":    nextOffset < total,
+		"NextOffset": nextOffset,
+	})
 }
 
 // renderStationConfig builds the bucket grid for music or podcast config pages.

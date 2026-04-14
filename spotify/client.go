@@ -40,6 +40,13 @@ type Device struct {
 	IsActive bool
 }
 
+// PlaylistSummary holds the display fields for a user playlist.
+type PlaylistSummary struct {
+	URI      string
+	Name     string
+	ImageURL string
+}
+
 // Client wraps the Spotify Web API with automatic token management.
 type Client struct {
 	auth *Auth
@@ -296,6 +303,35 @@ func (c *Client) GetShowEpisodes(ctx context.Context, showURI, showName string, 
 		nextURL = page.Next
 	}
 	return episodes, nil
+}
+
+// GetUserPlaylists returns a page of the current user's owned and followed
+// playlists. offset and limit follow Spotify's pagination convention (limit
+// max 50). total is the total number of playlists in the account.
+func (c *Client) GetUserPlaylists(ctx context.Context, offset, limit int) (playlists []PlaylistSummary, total int, err error) {
+	var resp struct {
+		Total int `json:"total"`
+		Items []struct {
+			URI    string `json:"uri"`
+			Name   string `json:"name"`
+			Images []struct {
+				URL string `json:"url"`
+			} `json:"images"`
+		} `json:"items"`
+	}
+	path := fmt.Sprintf("/me/playlists?limit=%d&offset=%d", limit, offset)
+	if err := c.get(ctx, path, &resp); err != nil {
+		return nil, 0, fmt.Errorf("spotify: get user playlists: %w", err)
+	}
+	playlists = make([]PlaylistSummary, 0, len(resp.Items))
+	for _, item := range resp.Items {
+		ps := PlaylistSummary{URI: item.URI, Name: item.Name}
+		if len(item.Images) > 0 {
+			ps.ImageURL = item.Images[0].URL
+		}
+		playlists = append(playlists, ps)
+	}
+	return playlists, resp.Total, nil
 }
 
 // GetTrackImage returns the URL of the album art for a track, preferring the

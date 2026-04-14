@@ -48,7 +48,7 @@ type Server struct {
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController, librespot LibrespotController) (*Server, error) {
 	pages := []string{"index", "auth", "debug", "music", "podcast"}
-	templates := make(map[string]*template.Template, len(pages))
+	templates := make(map[string]*template.Template, len(pages)+1)
 	for _, page := range pages {
 		tmpl, err := template.ParseFS(templateFS,
 			"templates/base.html",
@@ -58,6 +58,14 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 			return nil, err
 		}
 		templates[page] = tmpl
+	}
+	// Fragment templates rendered without the base layout.
+	for _, frag := range []string{"playlist-picker"} {
+		tmpl, err := template.ParseFS(templateFS, "templates/"+frag+".html")
+		if err != nil {
+			return nil, err
+		}
+		templates[frag] = tmpl
 	}
 
 	s := &Server{
@@ -90,6 +98,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /config/music", s.handleMusicConfigSave)
 	s.mux.HandleFunc("GET /config/podcast", s.handlePodcastConfig)
 	s.mux.HandleFunc("POST /config/podcast", s.handlePodcastConfigSave)
+	s.mux.HandleFunc("GET /api/playlists", s.handleAPIPlaylists)
 	s.mux.HandleFunc("GET /debug", s.handleDebug)
 	s.mux.HandleFunc("GET /debug/state", s.handleDebugState)
 	s.mux.HandleFunc("POST /debug/simulate", s.handleDebugSimulate)

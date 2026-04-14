@@ -1,0 +1,47 @@
+{{define "playlist-tiles"}}
+{{range .Playlists}}
+<div class="pl-tile" onclick="selectPlaylist('{{.URI}}', '{{.ImageURL}}')">
+    <div class="pl-tile-art">
+        {{if .ImageURL}}
+        <img src="{{.ImageURL}}" alt="" />
+        {{else}}
+        <div class="pl-tile-empty">♫</div>
+        {{end}}
+    </div>
+    <div class="pl-tile-name">{{.Name}}</div>
+</div>
+{{end}}
+{{end}}
+
+{{/* Initial load: renders the grid wrapper + first page of tiles + load-more */}}
+{{define "playlist-initial"}}
+<div id="playlist-grid">
+    {{template "playlist-tiles" .}}
+</div>
+{{if .HasMore}}
+<button id="playlist-load-more"
+        class="cfg-btn pl-load-more"
+        hx-get="/api/playlists?offset={{.NextOffset}}"
+        hx-target="#playlist-grid"
+        hx-swap="beforeend">
+    Load More
+</button>
+{{end}}
+{{end}}
+
+{{/* Subsequent pages: tiles appended to #playlist-grid + OOB update of load-more button */}}
+{{define "playlist-items"}}
+{{template "playlist-tiles" .}}
+{{if .HasMore}}
+<button id="playlist-load-more"
+        hx-swap-oob="outerHTML:#playlist-load-more"
+        class="cfg-btn pl-load-more"
+        hx-get="/api/playlists?offset={{.NextOffset}}"
+        hx-target="#playlist-grid"
+        hx-swap="beforeend">
+    Load More
+</button>
+{{else}}
+<span id="playlist-load-more" hx-swap-oob="outerHTML:#playlist-load-more"></span>
+{{end}}
+{{end}}

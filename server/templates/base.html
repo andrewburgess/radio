@@ -50,6 +50,93 @@
         </style>
         <script src="https://unpkg.com/htmx.org@2.0.4"></script>
         <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+        <style>
+            /* Playlist picker modal */
+            #playlist-modal {
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.85);
+                z-index: 1000;
+                display: none;
+                align-items: center;
+                justify-content: center;
+            }
+            #playlist-modal.open { display: flex; }
+            .pl-modal-box {
+                background: #111;
+                border: 1px solid #333;
+                width: min(640px, 92vw);
+                max-height: 80vh;
+                display: flex;
+                flex-direction: column;
+            }
+            .pl-modal-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.9rem 1rem;
+                border-bottom: 1px solid #222;
+                flex: none;
+            }
+            .pl-modal-header span {
+                color: #c8a84b;
+                font-size: 0.8rem;
+                letter-spacing: 0.15em;
+            }
+            .pl-modal-close {
+                background: none;
+                border: none;
+                color: #555;
+                cursor: pointer;
+                font-size: 1.1rem;
+                padding: 0;
+                line-height: 1;
+            }
+            .pl-modal-close:hover { color: #ccc; }
+            #playlist-modal-content {
+                overflow-y: auto;
+                padding: 1rem;
+                flex: 1;
+            }
+            #playlist-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+                gap: 0.75rem;
+                margin-bottom: 0.75rem;
+            }
+            .pl-tile {
+                cursor: pointer;
+                display: flex;
+                flex-direction: column;
+                gap: 0.4rem;
+            }
+            .pl-tile:hover .pl-tile-art { border-color: #c8a84b; }
+            .pl-tile-art {
+                aspect-ratio: 1;
+                background: #0d0d0d;
+                border: 1px solid #222;
+                overflow: hidden;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .pl-tile-art img { width: 100%; height: 100%; object-fit: cover; }
+            .pl-tile-empty { font-size: 1.5rem; color: #333; }
+            .pl-tile-name {
+                font-size: 0.7rem;
+                color: #888;
+                line-height: 1.3;
+                overflow: hidden;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+            }
+            .pl-tile:hover .pl-tile-name { color: #ccc; }
+            .pl-load-more {
+                width: 100%;
+                margin-top: 0.25rem;
+            }
+        </style>
     </head>
     <body>
         <header>
@@ -65,7 +152,59 @@
             </nav>
         </header>
         <main>{{template "content" .}}</main>
-        <script>lucide.createIcons();</script>
+
+        <!-- Playlist picker modal (shared by music + podcast config pages) -->
+        <div id="playlist-modal">
+            <div class="pl-modal-box">
+                <div class="pl-modal-header">
+                    <span>SELECT PLAYLIST</span>
+                    <button class="pl-modal-close" onclick="closePL()">✕</button>
+                </div>
+                <div id="playlist-modal-content">
+                    <div style="color:#444; font-size:0.8rem; padding:1rem 0;">Loading…</div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            lucide.createIcons();
+
+            var _plBucket = null;
+
+            function openPL(bucketIdx) {
+                _plBucket = bucketIdx;
+                document.getElementById('playlist-modal-content').innerHTML =
+                    '<div style="color:#444;font-size:0.8rem;padding:1rem 0;">Loading\u2026</div>';
+                document.getElementById('playlist-modal').classList.add('open');
+                htmx.ajax('GET', '/api/playlists', {
+                    target: '#playlist-modal-content',
+                    swap: 'innerHTML'
+                });
+            }
+
+            function closePL() {
+                document.getElementById('playlist-modal').classList.remove('open');
+                _plBucket = null;
+            }
+
+            function selectPlaylist(uri, imageURL) {
+                if (_plBucket === null) return;
+                var input = document.querySelector('[name="bucket_' + _plBucket + '"]');
+                if (input) input.value = uri;
+                var container = document.querySelector('[data-bucket="' + _plBucket + '"] .cfg-bucket-image-container');
+                if (container) {
+                    container.innerHTML = imageURL
+                        ? '<img src="' + imageURL + '" alt="Playlist cover" />'
+                        : '<div class="cfg-bucket-image-empty">\u266b</div>';
+                }
+                closePL();
+            }
+
+            // Close modal on backdrop click
+            document.getElementById('playlist-modal').addEventListener('click', function(e) {
+                if (e.target === this) closePL();
+            });
+        </script>
     </body>
 </html>
 {{end}}

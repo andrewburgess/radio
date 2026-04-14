@@ -21,7 +21,7 @@ const (
 
 	// Scopes required for playback control, reading playlists/shows, and
 	// Spotify Connect device registration via librespot.
-	scopes = "user-read-playback-state user-modify-playback-state playlist-read-private streaming"
+	scopes = "user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative streaming"
 )
 
 // Token holds a Spotify OAuth token pair.
