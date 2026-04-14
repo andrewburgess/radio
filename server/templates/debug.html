@@ -236,10 +236,7 @@
     {{if .TrackName}}{{.TrackName}}{{if .Artists}} &mdash;
     {{.Artists}}{{end}}{{else}}&mdash;{{end}}
 </div>
-{{end}}
-
-{{define "debug-state-poll"}}
-{{template "debug-state" .}}
+{{end}} {{define "debug-state-poll"}} {{template "debug-state" .}}
 <div id="eventlog-inner" class="event-log" hx-swap-oob="innerHTML">
     {{range .RecentEvents}}
     <div class="ev">

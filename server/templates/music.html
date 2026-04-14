@@ -102,14 +102,22 @@
 
 <div class="cfg-header">
     <h2>MUSIC CONFIGURATION</h2>
-    <p class="cfg-subtext">Assign a Spotify playlist URI or URL to each station bucket. Leave blank for static/no signal.</p>
+    <p class="cfg-subtext">
+        Assign a Spotify playlist URI or URL to each station bucket. Leave blank
+        for static/no signal.
+    </p>
 </div>
 
 <form method="post">
     <div class="cfg-grid">
         {{range .Buckets}}
         <div class="cfg-bucket" data-bucket="{{.Index}}">
-            <div class="cfg-bucket-image-container" onclick="openPL({{.Index}})" style="cursor:pointer;" title="Browse playlists">
+            <div
+                class="cfg-bucket-image-container"
+                onclick="openPL({{.Index}})"
+                style="cursor: pointer"
+                title="Browse playlists"
+            >
                 {{if .ImageURL}}
                 <img src="{{.ImageURL}}" alt="Playlist cover" />
                 {{else}}
@@ -124,8 +132,14 @@
                 value="{{.URI}}"
                 placeholder="spotify:playlist:... or https://open.spotify.com/playlist/..."
             />
-            <div class="cfg-actions" style="margin-top: 0.25rem;">
-                <button type="button" class="cfg-btn" onclick="openPL({{.Index}})">Browse</button>
+            <div class="cfg-actions" style="margin-top: 0.25rem">
+                <button
+                    type="button"
+                    class="cfg-btn"
+                    onclick="openPL({{.Index}})"
+                >
+                    Browse
+                </button>
             </div>
         </div>
         {{end}}
@@ -133,7 +147,12 @@
 
     <div class="cfg-actions">
         <button type="submit" class="cfg-btn primary">Save</button>
-        <a href="/" class="cfg-btn" style="text-decoration:none; display:flex; align-items:center;">Back</a>
+        <a
+            href="/"
+            class="cfg-btn"
+            style="text-decoration: none; display: flex; align-items: center"
+            >Back</a
+        >
     </div>
 </form>
 {{end}}

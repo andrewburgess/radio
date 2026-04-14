@@ -61,7 +61,9 @@
                 align-items: center;
                 justify-content: center;
             }
-            #playlist-modal.open { display: flex; }
+            #playlist-modal.open {
+                display: flex;
+            }
             .pl-modal-box {
                 background: #111;
                 border: 1px solid #333;
@@ -92,7 +94,9 @@
                 padding: 0;
                 line-height: 1;
             }
-            .pl-modal-close:hover { color: #ccc; }
+            .pl-modal-close:hover {
+                color: #ccc;
+            }
             #playlist-modal-content {
                 overflow-y: auto;
                 padding: 1rem;
@@ -110,7 +114,9 @@
                 flex-direction: column;
                 gap: 0.4rem;
             }
-            .pl-tile:hover .pl-tile-art { border-color: #c8a84b; }
+            .pl-tile:hover .pl-tile-art {
+                border-color: #c8a84b;
+            }
             .pl-tile-art {
                 aspect-ratio: 1;
                 background: #0d0d0d;
@@ -120,8 +126,15 @@
                 align-items: center;
                 justify-content: center;
             }
-            .pl-tile-art img { width: 100%; height: 100%; object-fit: cover; }
-            .pl-tile-empty { font-size: 1.5rem; color: #333; }
+            .pl-tile-art img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .pl-tile-empty {
+                font-size: 1.5rem;
+                color: #333;
+            }
             .pl-tile-name {
                 font-size: 0.7rem;
                 color: #888;
@@ -131,7 +144,9 @@
                 -webkit-line-clamp: 2;
                 -webkit-box-orient: vertical;
             }
-            .pl-tile:hover .pl-tile-name { color: #ccc; }
+            .pl-tile:hover .pl-tile-name {
+                color: #ccc;
+            }
             .pl-load-more {
                 width: 100%;
                 margin-top: 0.25rem;
@@ -141,13 +156,31 @@
     <body>
         <header>
             <h1>ZENITH RADIO</h1>
-            <nav style="display: flex; gap: 1.5rem; width: 100%;">
+            <nav style="display: flex; gap: 1.5rem; width: 100%">
                 <a href="/">NOW PLAYING</a>
                 <a href="/config/music">MUSIC</a>
                 <a href="/config/podcast">PODCAST</a>
                 <a href="/debug">DEBUG</a>
-                <form method="POST" action="/auth/logout" style="margin: 0 0 0 auto">
-                    <button type="submit" style="background: none; border: none; color: #555; font-family: monospace; font-size: 0.85rem; letter-spacing: 0.05em; cursor: pointer; padding: 0;">LOG OUT</button>
+                <form
+                    method="POST"
+                    action="/auth/logout"
+                    style="margin: 0 0 0 auto"
+                >
+                    <button
+                        type="submit"
+                        style="
+                            background: none;
+                            border: none;
+                            color: #555;
+                            font-family: monospace;
+                            font-size: 0.85rem;
+                            letter-spacing: 0.05em;
+                            cursor: pointer;
+                            padding: 0;
+                        "
+                    >
+                        LOG OUT
+                    </button>
                 </form>
             </nav>
         </header>
@@ -158,10 +191,16 @@
             <div class="pl-modal-box">
                 <div class="pl-modal-header">
                     <span>SELECT PLAYLIST</span>
-                    <button class="pl-modal-close" onclick="closePL()">✕</button>
+                    <button class="pl-modal-close" onclick="closePL()">
+                        ✕
+                    </button>
                 </div>
                 <div id="playlist-modal-content">
-                    <div style="color:#444; font-size:0.8rem; padding:1rem 0;">Loading…</div>
+                    <div
+                        style="color: #444; font-size: 0.8rem; padding: 1rem 0"
+                    >
+                        Loading…
+                    </div>
                 </div>
             </div>
         </div>
@@ -173,25 +212,33 @@
 
             function openPL(bucketIdx) {
                 _plBucket = bucketIdx;
-                document.getElementById('playlist-modal-content').innerHTML =
+                document.getElementById("playlist-modal-content").innerHTML =
                     '<div style="color:#444;font-size:0.8rem;padding:1rem 0;">Loading\u2026</div>';
-                document.getElementById('playlist-modal').classList.add('open');
-                htmx.ajax('GET', '/api/playlists', {
-                    target: '#playlist-modal-content',
-                    swap: 'innerHTML'
+                document.getElementById("playlist-modal").classList.add("open");
+                htmx.ajax("GET", "/api/playlists", {
+                    target: "#playlist-modal-content",
+                    swap: "innerHTML"
                 });
             }
 
             function closePL() {
-                document.getElementById('playlist-modal').classList.remove('open');
+                document
+                    .getElementById("playlist-modal")
+                    .classList.remove("open");
                 _plBucket = null;
             }
 
             function selectPlaylist(uri, imageURL) {
                 if (_plBucket === null) return;
-                var input = document.querySelector('[name="bucket_' + _plBucket + '"]');
+                var input = document.querySelector(
+                    '[name="bucket_' + _plBucket + '"]'
+                );
                 if (input) input.value = uri;
-                var container = document.querySelector('[data-bucket="' + _plBucket + '"] .cfg-bucket-image-container');
+                var container = document.querySelector(
+                    '[data-bucket="' +
+                        _plBucket +
+                        '"] .cfg-bucket-image-container'
+                );
                 if (container) {
                     container.innerHTML = imageURL
                         ? '<img src="' + imageURL + '" alt="Playlist cover" />'
@@ -201,9 +248,11 @@
             }
 
             // Close modal on backdrop click
-            document.getElementById('playlist-modal').addEventListener('click', function(e) {
-                if (e.target === this) closePL();
-            });
+            document
+                .getElementById("playlist-modal")
+                .addEventListener("click", function (e) {
+                    if (e.target === this) closePL();
+                });
         </script>
     </body>
 </html>
