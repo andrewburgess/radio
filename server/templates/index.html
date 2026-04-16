@@ -143,7 +143,7 @@
 <div class="np-meta">
     <span id="np-bucket" class="highlight">{{.BucketLabel}}</span>
     <span id="np-mode"
-        >{{if eq (print .Mode) "podcast"}}PODCAST{{else}}MUSIC{{end}}</span
+        >{{if eq (print .Mode) "podcast"}}PODCAST{{else if eq (print .Mode) "speaker"}}SPEAKER{{else}}MUSIC{{end}}</span
     >
     <span>VOL <span id="np-volume">{{.Volume}}</span>%</span>
     <span id="np-power-label">{{if .PowerOn}}ON{{else}}OFF{{end}}</span>
@@ -293,8 +293,12 @@
 
         es.addEventListener("mode", function (e) {
             const d = JSON.parse(e.data);
-            set("np-mode", d.mode === "podcast" ? "PODCAST" : "MUSIC");
-            clearArtwork();
+            const label = d.mode === "podcast" ? "PODCAST"
+                        : d.mode === "speaker" ? "SPEAKER"
+                        : "MUSIC";
+            set("np-mode", label);
+            // Speaker mode hands off passively — keep the current artwork.
+            if (d.mode !== "speaker") clearArtwork();
         });
 
         es.addEventListener("power", function (e) {

@@ -193,6 +193,18 @@ func (s *Server) publishSnapshot(c *sseClient) {
 	})
 }
 
+// publishClearTrack broadcasts empty track/station/playback/static events so
+// connected clients immediately drop stale now-playing info when the station
+// changes, rather than waiting for the next KindTrackChanged event.
+func (s *Server) publishClearTrack() {
+	s.broker.publish(sseEventTrack, sseTrackPayload{})
+	s.broker.publish(sseEventStation, sseStationPayload{})
+	s.broker.publish(sseEventPlayback, ssePlaybackPayload{Playing: false})
+	// Deliberately no sseEventStatic here — let KindStaticStarted/Stopped own
+	// that state. Forcing static:false here causes a flash on empty→empty
+	// bucket transitions: the NO SIGNAL screen briefly disappears then returns.
+}
+
 // runSSEPublisher subscribes to the event bus and translates each event into
 // one or more SSE publishes. Runs in its own goroutine.
 func (s *Server) runSSEPublisher() {
@@ -234,13 +246,22 @@ func (s *Server) runSSEPublisher() {
 			s.broker.publish(sseEventStatic, sseStaticPayload{Playing: false})
 		case events.KindDialMoved:
 			mode := s.state.getMode()
+			if mode != events.ModeSpeaker {
+				s.publishClearTrack()
+			}
 			s.broker.publish(sseEventDial, sseDialPayload{
 				Bucket: e.Bucket,
 				Label:  stationLabel(e.Bucket, s.cfg.BucketCount, string(mode)),
 			})
 		case events.KindToggleSwitched:
+			// Speaker (AFC) mode hands off to Spotify Connect passively — whatever
+			// is playing continues, so don't clear now-playing info. For music/podcast
+			// a new station is about to load, so clear immediately.
+			if e.Mode != events.ModeSpeaker {
+				s.publishClearTrack()
+			}
 			s.broker.publish(sseEventMode, sseModePayload{Mode: string(e.Mode)})
-			// Re-emit dial so the frequency label updates (FM↔AM changes the format).
+			// Re-emit dial so the frequency label updates.
 			snap := s.state.snapshot(s.cfg.BucketCount)
 			s.broker.publish(sseEventDial, sseDialPayload{
 				Bucket: snap.Bucket,
@@ -248,6 +269,7 @@ func (s *Server) runSSEPublisher() {
 			})
 		case events.KindPowerChanged:
 			s.broker.publish(sseEventPower, ssePowerPayload{On: e.PowerOn})
+			s.publishClearTrack()
 		case events.KindVolumeChanged:
 			s.broker.publish(sseEventVolume, sseVolumePayload{Volume: e.Volume})
 		case events.KindStationChanged:

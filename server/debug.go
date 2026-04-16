@@ -105,13 +105,19 @@ func (rs *radioState) update(e events.Event) {
 	switch e.Kind {
 	case events.KindDialMoved:
 		rs.bucket = e.Bucket
+		if rs.mode != events.ModeSpeaker {
+			rs.clearTrack()
+		}
 		desc = fmt.Sprintf("dial_moved: bucket=%d", e.Bucket)
 	case events.KindToggleSwitched:
 		rs.mode = e.Mode
-		rs.artworkURL = ""
+		if e.Mode != events.ModeSpeaker {
+			rs.clearTrack()
+		}
 		desc = fmt.Sprintf("toggle_switched: mode=%s", e.Mode)
 	case events.KindPowerChanged:
 		rs.powerOn = e.PowerOn
+		rs.clearTrack()
 		desc = fmt.Sprintf("power_changed: on=%v", e.PowerOn)
 	case events.KindVolumeChanged:
 		rs.volume = e.Volume
@@ -153,6 +159,24 @@ func (rs *radioState) update(e events.Event) {
 	if len(rs.recentEvents) > maxRecentEvents {
 		rs.recentEvents = rs.recentEvents[:maxRecentEvents]
 	}
+}
+
+// clearTrack zeroes all fields that describe the currently playing track or
+// station. Call this (with mu held) whenever the station changes so that stale
+// data is never served from a snapshot.
+func (rs *radioState) clearTrack() {
+	rs.trackName = ""
+	rs.artists = ""
+	rs.showName = ""
+	rs.trackURI = ""
+	rs.album = ""
+	rs.artworkURL = ""
+	rs.stationName = ""
+	rs.stationImageURL = ""
+	rs.playing = false
+	// staticPlaying is intentionally left unchanged — KindStaticStarted/Stopped
+	// owns that field. Clearing it here causes empty→empty bucket transitions to
+	// briefly leave the NO SIGNAL state before it is restored.
 }
 
 func (rs *radioState) getMode() events.Mode {
