@@ -138,6 +138,10 @@ Do not create files outside this structure without a good reason.
 | `SPOTIFY_CLIENT_SECRET` | Spotify app client secret                                 | required              |
 | `SPOTIFY_REDIRECT_URI`  | OAuth redirect URI for auth code flow                     | required              |
 | `PLAYLIST_CACHE_FILE`   | File-based playlist cache (migrated to SQLite in Phase 9) | `playlist-cache.json` |
+| `DIAL_CENTER_X`         | X-axis magnetic center offset (from `cmd/dial-calibrate`) | `0`                   |
+| `DIAL_CENTER_Y`         | Y-axis magnetic center offset (from `cmd/dial-calibrate`) | `0`                   |
+| `DIAL_MIN_ANGLE`        | Start of usable arc in degrees (from `cmd/dial-calibrate`)| `0`                   |
+| `DIAL_MAX_ANGLE`        | End of usable arc in degrees (from `cmd/dial-calibrate`)  | `270`                 |
 
 ## SQLite Schema
 

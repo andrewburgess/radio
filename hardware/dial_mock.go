@@ -10,7 +10,7 @@ type Dial struct {
 	bus *events.Bus
 }
 
-func NewDial(bus *events.Bus, i2cBus, i2cAddr string, bucketCount int, minAngle, maxAngle float64) *Dial {
+func NewDial(bus *events.Bus, i2cBus, i2cAddr string, bucketCount int, centerX, centerY, minAngle, maxAngle float64) *Dial {
 	return &Dial{bus: bus}
 }
 

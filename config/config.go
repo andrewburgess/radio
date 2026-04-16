@@ -28,6 +28,8 @@ type Config struct {
 	AmpGPIOPin       string
 	DialI2CBus       string
 	DialI2CAddr      string
+	DialCenterX      float64
+	DialCenterY      float64
 	DialMinAngle     float64
 	DialMaxAngle     float64
 	ToggleGPIOPinA   string // Row 2 → AM/music
@@ -122,6 +124,14 @@ func Load() (*Config, error) {
 	cfg.AlsaCard = getEnv("ALSA_CARD", "Headphones")
 	cfg.AlsaMixerControl = getEnv("ALSA_MIXER_CONTROL", "PCM")
 
+	cfg.DialCenterX, err = getEnvFloat("DIAL_CENTER_X", 0)
+	if err != nil {
+		return nil, fmt.Errorf("config: DIAL_CENTER_X: %w", err)
+	}
+	cfg.DialCenterY, err = getEnvFloat("DIAL_CENTER_Y", 0)
+	if err != nil {
+		return nil, fmt.Errorf("config: DIAL_CENTER_Y: %w", err)
+	}
 	cfg.DialMinAngle, err = getEnvFloat("DIAL_MIN_ANGLE", 0)
 	if err != nil {
 		return nil, fmt.Errorf("config: DIAL_MIN_ANGLE: %w", err)

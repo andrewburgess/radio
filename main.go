@@ -29,6 +29,16 @@ func main() {
 		return
 	}
 
+	// Set log level via LOG_LEVEL env var (debug, info, warn, error).
+	// Defaults to info. Set LOG_LEVEL=debug to see per-poll dial readings.
+	{
+		var level slog.Level
+		if err := level.UnmarshalText([]byte(os.Getenv("LOG_LEVEL"))); err != nil {
+			level = slog.LevelInfo
+		}
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("failed to load config", "err", err)
@@ -100,7 +110,7 @@ func main() {
 	}
 
 	watchers := []hardware.Watcher{
-		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialMinAngle, cfg.DialMaxAngle),
+		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialCenterX, cfg.DialCenterY, cfg.DialMinAngle, cfg.DialMaxAngle),
 		hardware.NewToggle(bus, cfg.ToggleGPIOPinA, cfg.ToggleGPIOPinB),
 		hardware.NewPower(bus, cfg.PowerGPIOPin),
 		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaCard, cfg.AlsaMixerControl, cfg.VolumeMinRaw, cfg.VolumeMaxRaw, cfg.VolumeMaxPct, cfg.VolumeCurve),
