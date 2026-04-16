@@ -98,6 +98,38 @@
     .cfg-btn.primary:hover {
         background: #222;
     }
+    @media (max-width: 600px) {
+        .cfg-bucket {
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .cfg-bucket-image-container {
+            width: 72px;
+            height: 72px;
+            flex-shrink: 0;
+            aspect-ratio: unset;
+            margin-bottom: 0;
+        }
+        .cfg-bucket-body {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .cfg-bucket-input {
+            font-size: 16px;
+        }
+        .cfg-btn {
+            min-height: 44px;
+            padding: 0 1rem;
+            display: inline-flex;
+            align-items: center;
+        }
+        .cfg-actions > .cfg-btn[href] {
+            justify-content: center;
+        }
+    }
 </style>
 
 <div class="cfg-header">
@@ -125,22 +157,24 @@
                 <div class="cfg-bucket-image-empty">🎙️</div>
                 {{end}}
             </div>
-            <div class="cfg-bucket-label">Station {{.Index}}</div>
-            <input
-                type="text"
-                class="cfg-bucket-input"
-                name="bucket_{{.Index}}"
-                value="{{.URI}}"
-                placeholder="spotify:playlist:... or https://open.spotify.com/playlist/..."
-            />
-            <div class="cfg-actions" style="margin-top: 0.25rem">
-                <button
-                    type="button"
-                    class="cfg-btn"
-                    onclick="openPL({{.Index}})"
-                >
-                    Browse
-                </button>
+            <div class="cfg-bucket-body">
+                <div class="cfg-bucket-label">{{.Label}}</div>
+                <input
+                    type="text"
+                    class="cfg-bucket-input"
+                    name="bucket_{{.Index}}"
+                    value="{{.URI}}"
+                    placeholder="spotify:playlist:... or https://open.spotify.com/playlist/..."
+                />
+                <div class="cfg-actions" style="margin-top: 0.25rem">
+                    <button
+                        type="button"
+                        class="cfg-btn"
+                        onclick="openPL({{.Index}})"
+                    >
+                        Browse
+                    </button>
+                </div>
             </div>
         </div>
         {{end}}

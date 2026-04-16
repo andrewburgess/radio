@@ -27,6 +27,7 @@
                 display: flex;
                 align-items: center;
                 gap: 2rem;
+                flex-wrap: wrap;
             }
             header h1 {
                 flex: none;
@@ -34,18 +35,58 @@
                 letter-spacing: 0.1em;
                 color: #c8a84b;
             }
+            .main-nav {
+                display: flex;
+                gap: 1.5rem;
+                width: 100%;
+                flex-wrap: wrap;
+                align-items: center;
+            }
             nav a {
                 color: #888;
                 text-decoration: none;
                 font-size: 0.85rem;
                 letter-spacing: 0.05em;
+                padding: 0.25rem 0;
             }
             nav a:hover {
                 color: #e0e0e0;
             }
+            .nav-logout-form {
+                margin: 0 0 0 auto;
+            }
+            .nav-logout-btn {
+                background: none;
+                border: none;
+                color: #555;
+                font-family: monospace;
+                font-size: 0.85rem;
+                letter-spacing: 0.05em;
+                cursor: pointer;
+                padding: 0.25rem 0;
+                min-height: 44px;
+            }
+            .nav-logout-btn:hover {
+                color: #aaa;
+            }
             main {
                 flex: 1;
                 padding: 2rem;
+            }
+            @media (max-width: 600px) {
+                header {
+                    padding: 0.75rem 1rem;
+                    gap: 0.25rem 1rem;
+                }
+                header h1 {
+                    width: 100%;
+                }
+                .main-nav {
+                    gap: 0.25rem 1.25rem;
+                }
+                main {
+                    padding: 1rem;
+                }
             }
         </style>
         <script src="https://unpkg.com/htmx.org@2.0.4"></script>
@@ -91,8 +132,13 @@
                 color: #555;
                 cursor: pointer;
                 font-size: 1.1rem;
-                padding: 0;
+                padding: 0.5rem;
                 line-height: 1;
+                min-width: 44px;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             .pl-modal-close:hover {
                 color: #ccc;
@@ -156,7 +202,7 @@
     <body>
         <header>
             <h1>ZENITH RADIO</h1>
-            <nav style="display: flex; gap: 1.5rem; width: 100%">
+            <nav class="main-nav">
                 <a href="/">NOW PLAYING</a>
                 <a href="/config/music">MUSIC</a>
                 <a href="/config/podcast">PODCAST</a>
@@ -164,20 +210,11 @@
                 <form
                     method="POST"
                     action="/auth/logout"
-                    style="margin: 0 0 0 auto"
+                    class="nav-logout-form"
                 >
                     <button
                         type="submit"
-                        style="
-                            background: none;
-                            border: none;
-                            color: #555;
-                            font-family: monospace;
-                            font-size: 0.85rem;
-                            letter-spacing: 0.05em;
-                            cursor: pointer;
-                            padding: 0;
-                        "
+                        class="nav-logout-btn"
                     >
                         LOG OUT
                     </button>

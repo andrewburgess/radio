@@ -53,6 +53,7 @@ func newRadioState() *radioState {
 // and SSE initial snapshots.
 type stateSnapshot struct {
 	Bucket          int
+	BucketLabel     string
 	Mode            events.Mode
 	PowerOn         bool
 	Volume          int
@@ -77,6 +78,7 @@ func (rs *radioState) snapshot(bucketCount int) stateSnapshot {
 	copy(ev, rs.recentEvents)
 	return stateSnapshot{
 		Bucket:          rs.bucket,
+		BucketLabel:     stationLabel(rs.bucket, bucketCount, string(rs.mode)),
 		Mode:            rs.mode,
 		PowerOn:         rs.powerOn,
 		Volume:          rs.volume,
@@ -151,6 +153,12 @@ func (rs *radioState) update(e events.Event) {
 	if len(rs.recentEvents) > maxRecentEvents {
 		rs.recentEvents = rs.recentEvents[:maxRecentEvents]
 	}
+}
+
+func (rs *radioState) getMode() events.Mode {
+	rs.mu.RLock()
+	defer rs.mu.RUnlock()
+	return rs.mode
 }
 
 func (rs *radioState) setArtworkURL(url string) {

@@ -99,6 +99,20 @@
     .np-status.paused {
         color: #555;
     }
+    @media (max-width: 500px) {
+        .np-card {
+            flex-direction: column;
+            max-width: 100%;
+        }
+        .np-artwork {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1;
+        }
+        .np-track {
+            font-size: 1.2rem;
+        }
+    }
     .no-signal {
         font-size: 1.1rem;
         letter-spacing: 0.25em;
@@ -127,9 +141,7 @@
 {{$static := .StaticPlaying}} {{$playing := .Playing}}
 
 <div class="np-meta">
-    <span
-        >STATION <span id="np-bucket" class="highlight">{{.Bucket}}</span></span
-    >
+    <span id="np-bucket" class="highlight">{{.BucketLabel}}</span>
     <span id="np-mode"
         >{{if eq (print .Mode) "podcast"}}PODCAST{{else}}MUSIC{{end}}</span
     >
@@ -276,7 +288,7 @@
 
         es.addEventListener("dial", function (e) {
             const d = JSON.parse(e.data);
-            set("np-bucket", d.bucket);
+            set("np-bucket", d.label);
         });
 
         es.addEventListener("mode", function (e) {

@@ -46,7 +46,8 @@ type sseStaticPayload struct {
 }
 
 type sseDialPayload struct {
-	Bucket int `json:"bucket"`
+	Bucket int    `json:"bucket"`
+	Label  string `json:"label"`
 }
 
 type sseModePayload struct {
@@ -177,7 +178,7 @@ func (s *Server) publishSnapshot(c *sseClient) {
 
 	send(sseEventPlayback, ssePlaybackPayload{Playing: snap.Playing})
 	send(sseEventStatic, sseStaticPayload{Playing: snap.StaticPlaying})
-	send(sseEventDial, sseDialPayload{Bucket: snap.Bucket})
+	send(sseEventDial, sseDialPayload{Bucket: snap.Bucket, Label: snap.BucketLabel})
 	send(sseEventMode, sseModePayload{Mode: string(snap.Mode)})
 	send(sseEventPower, ssePowerPayload{On: snap.PowerOn})
 	send(sseEventVolume, sseVolumePayload{Volume: snap.Volume})
@@ -232,9 +233,19 @@ func (s *Server) runSSEPublisher() {
 		case events.KindStaticStopped:
 			s.broker.publish(sseEventStatic, sseStaticPayload{Playing: false})
 		case events.KindDialMoved:
-			s.broker.publish(sseEventDial, sseDialPayload{Bucket: e.Bucket})
+			mode := s.state.getMode()
+			s.broker.publish(sseEventDial, sseDialPayload{
+				Bucket: e.Bucket,
+				Label:  stationLabel(e.Bucket, s.cfg.BucketCount, string(mode)),
+			})
 		case events.KindToggleSwitched:
 			s.broker.publish(sseEventMode, sseModePayload{Mode: string(e.Mode)})
+			// Re-emit dial so the frequency label updates (FM↔AM changes the format).
+			snap := s.state.snapshot(s.cfg.BucketCount)
+			s.broker.publish(sseEventDial, sseDialPayload{
+				Bucket: snap.Bucket,
+				Label:  stationLabel(snap.Bucket, s.cfg.BucketCount, string(e.Mode)),
+			})
 		case events.KindPowerChanged:
 			s.broker.publish(sseEventPower, ssePowerPayload{On: e.PowerOn})
 		case events.KindVolumeChanged:
