@@ -48,10 +48,14 @@ type Server struct {
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController, librespot LibrespotController) (*Server, error) {
+	funcMap := template.FuncMap{
+		"showDebug": func() bool { return cfg.ShowDebug },
+	}
+
 	pages := []string{"index", "auth", "debug", "music", "podcast"}
 	templates := make(map[string]*template.Template, len(pages)+1)
 	for _, page := range pages {
-		tmpl, err := template.ParseFS(templateFS,
+		tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS,
 			"templates/base.html",
 			"templates/"+page+".html",
 		)
@@ -62,7 +66,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 	}
 	// Fragment templates rendered without the base layout.
 	for _, frag := range []string{"playlist-picker"} {
-		tmpl, err := template.ParseFS(templateFS, "templates/"+frag+".html")
+		tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/"+frag+".html")
 		if err != nil {
 			return nil, err
 		}

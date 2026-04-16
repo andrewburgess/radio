@@ -143,6 +143,7 @@ Do not create files outside this structure without a good reason.
 | `DIAL_MIN_ANGLE`        | Start of usable arc in degrees (from `cmd/dial-calibrate`)| `0`                   |
 | `DIAL_MAX_ANGLE`        | End of usable arc in degrees (from `cmd/dial-calibrate`)  | `270`                 |
 | `IMAGE_CACHE_DIR`       | Directory for downloaded playlist cover images             | `image-cache`         |
+| `SHOW_DEBUG`            | Show the Debug link in the nav (`true` to enable)         | `false`               |
 
 ## SQLite Schema
 

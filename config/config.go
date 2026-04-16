@@ -27,6 +27,9 @@ type Config struct {
 	// Image cache
 	ImageCacheDir string
 
+	// UI flags
+	ShowDebug bool
+
 	// Hardware
 	AmpGPIOPin       string
 	DialI2CBus       string
@@ -117,6 +120,7 @@ func Load() (*Config, error) {
 	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
 
 	cfg.ImageCacheDir = getEnv("IMAGE_CACHE_DIR", "image-cache")
+	cfg.ShowDebug = os.Getenv("SHOW_DEBUG") == "true"
 
 	// Hardware
 	cfg.AmpGPIOPin = getEnv("AMP_GPIO_PIN", "GPIO26")
