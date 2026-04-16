@@ -14,10 +14,17 @@ toolchain and is not the recommended path.
 ### 1. Install build dependencies (once)
 
 ```sh
-sudo apt-get install -y golang libasound2-dev
+sudo apt-get install -y golang libasound2-dev libasound2-plugins pipewire-alsa pulseaudio-utils
 ```
 
-`libasound2-dev` provides the ALSA headers that `oto` links against.
+| Package | Purpose |
+|---|---|
+| `libasound2-dev` | ALSA headers required by `oto` at build time |
+| `libasound2-plugins` | Adds the `pulse` PCM device to ALSA, so librespot can route audio through PipeWire |
+| `pipewire-alsa` | Makes PipeWire the default ALSA device for all apps (enables per-stream mixing) |
+| `pulseaudio-utils` | Provides `pactl` for inspecting and controlling PipeWire streams |
+
+Pi OS Bookworm ships PipeWire pre-installed. `pipewire-alsa` and `libasound2-plugins` are what connect ALSA-native apps (librespot, oto) into PipeWire's mixer so their audio streams can be controlled independently — this is required for volume fading and static/music mixing.
 
 ### 2. Build on the Pi
 
@@ -66,7 +73,46 @@ On first run, visit `http://<pi-ip>:8080/auth` in a browser to complete the
 Spotify OAuth flow. Credentials are cached in `LIBRESPOT_CACHE_DIR` and
 refreshed automatically after that.
 
-### 6. How librespot events work
+### 6. Install as a systemd service (optional but recommended)
+
+The install script builds the binary, copies everything to `/opt/radio/`, and
+registers a systemd service that starts automatically on boot:
+
+```sh
+./scripts/install.sh
+sudo systemctl start radio
+```
+
+The service runs as your user (not root) and is granted `CAP_NET_BIND_SERVICE`
+so it can listen on port 80 without `sudo`. Set `PORT=80` in
+`/opt/radio/.env` to take advantage of this.
+
+After the first install, `/opt/radio/.env` is created from `.env.example`.
+Edit it before starting the service. Subsequent reinstalls never overwrite it.
+
+Useful commands once running:
+
+```sh
+sudo systemctl restart radio     # after a reinstall
+sudo systemctl status radio
+journalctl -u radio -f           # follow logs
+journalctl -u radio -f --output cat   # plain output, easier to read
+```
+
+### 7. Verify PipeWire audio mixing
+
+With the radio running and audio playing, confirm both streams are visible to
+PipeWire:
+
+```sh
+pactl list sink-inputs short
+```
+
+You should see two entries — one for librespot and one for the static audio
+player. If librespot is missing, check that `LIBRESPOT_AUDIO_DEVICE=pulse` is
+set in `.env` and that `libasound2-plugins` is installed.
+
+### 8. How librespot events work
 
 The `radio` binary doubles as the librespot `--onevent` handler. When librespot
 fires a playback event it spawns `radio` with event data in env vars; the binary
