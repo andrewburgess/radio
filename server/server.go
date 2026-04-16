@@ -32,19 +32,20 @@ type LibrespotController interface {
 }
 
 type Server struct {
-	cfg         *config.Config
-	mux         *http.ServeMux
-	httpServer  *http.Server
-	templates   map[string]*template.Template
-	spotify     *spotify.Client
-	store       *store.Store
-	bus         *events.Bus
-	staticAudio *audio.Static
-	amp         AmpController
-	librespot   LibrespotController
-	state       *radioState
-	broker      *sseBroker
-	imageDir    string
+	cfg           *config.Config
+	staticMinGain float64
+	mux           *http.ServeMux
+	httpServer    *http.Server
+	templates     map[string]*template.Template
+	spotify       *spotify.Client
+	store         *store.Store
+	bus           *events.Bus
+	staticAudio   *audio.Static
+	amp           AmpController
+	librespot     LibrespotController
+	state         *radioState
+	broker        *sseBroker
+	imageDir      string
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController, librespot LibrespotController) (*Server, error) {
@@ -74,18 +75,19 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 	}
 
 	s := &Server{
-		cfg:         cfg,
-		mux:         http.NewServeMux(),
-		templates:   templates,
-		spotify:     spotifyClient,
-		store:       db,
-		bus:         bus,
-		staticAudio: staticAudio,
-		amp:         amp,
-		librespot:   librespot,
-		state:       newRadioState(),
-		broker:      newSSEBroker(),
-		imageDir:    cfg.ImageCacheDir,
+		cfg:           cfg,
+		staticMinGain: cfg.DialStaticMinGain,
+		mux:           http.NewServeMux(),
+		templates:     templates,
+		spotify:       spotifyClient,
+		store:         db,
+		bus:           bus,
+		staticAudio:   staticAudio,
+		amp:           amp,
+		librespot:     librespot,
+		state:         newRadioState(),
+		broker:        newSSEBroker(),
+		imageDir:      cfg.ImageCacheDir,
 	}
 
 	go s.runStateUpdater()

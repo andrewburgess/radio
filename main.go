@@ -110,7 +110,7 @@ func main() {
 	}
 
 	watchers := []hardware.Watcher{
-		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialCenterX, cfg.DialCenterY, cfg.DialMinAngle, cfg.DialMaxAngle),
+		hardware.NewDial(bus, cfg.DialI2CBus, cfg.DialI2CAddr, cfg.BucketCount, cfg.DialCenterX, cfg.DialCenterY, cfg.DialMinAngle, cfg.DialMaxAngle, cfg.DialTuneForgiveness),
 		hardware.NewToggle(bus, cfg.ToggleGPIOPinA, cfg.ToggleGPIOPinB),
 		hardware.NewPower(bus, cfg.PowerGPIOPin),
 		hardware.NewVolume(bus, cfg.VolumeSPIDev, cfg.VolumeSPIChannel, cfg.AlsaCard, cfg.AlsaMixerControl, cfg.VolumeMinRaw, cfg.VolumeMaxRaw, cfg.VolumeMaxPct, cfg.VolumeCurve),

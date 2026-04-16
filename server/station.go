@@ -24,9 +24,12 @@ func (s *Server) runStationController() {
 	defer s.bus.Unsubscribe(ch)
 
 	var (
-		bucket  int
-		mode    = events.ModeMusic
-		powered bool
+		bucket      int
+		mode        = events.ModeMusic
+		powered     bool
+		assigned    bool    // true when current bucket has a playlist
+		tuneQuality float64 // latest value from KindTuneQualityChanged
+		prevQuality float64 // previous value, used to detect sweet-spot entry
 	)
 
 	for e := range ch {
@@ -36,22 +39,48 @@ func (s *Server) runStationController() {
 			if powered && mode != events.ModeSpeaker {
 				go s.switchStation(bucket, string(mode))
 			}
+
+		case events.KindTuneQualityChanged:
+			if !powered || mode == events.ModeSpeaker {
+				break
+			}
+			prevQuality = tuneQuality
+			tuneQuality = e.TuneQuality
+			if assigned {
+				s.staticAudio.SetGain(s.staticGain(tuneQuality))
+				// Entering the sweet spot: shuffle to a fresh static position.
+				if tuneQuality >= 1.0 && prevQuality < 1.0 {
+					s.staticAudio.Shuffle()
+				}
+			}
+
+		case events.KindStaticStarted:
+			assigned = false
+			// Static is at full volume for unassigned buckets; gain is managed
+			// by switchStation directly so nothing extra to do here.
+
+		case events.KindStaticStopped:
+			assigned = true
+			// Snap gain to match the current tune quality immediately.
+			s.staticAudio.SetGain(s.staticGain(tuneQuality))
+
 		case events.KindToggleSwitched:
 			mode = e.Mode
 			if powered {
 				if mode == events.ModeSpeaker {
-					// AFC position: hand off to Spotify Connect passively.
 					go s.enterSpeakerMode()
 				} else {
 					go s.switchStation(bucket, string(mode))
 				}
 			}
+
 		case events.KindPowerChanged:
 			powered = e.PowerOn
 			if powered {
 				if err := s.librespot.Start(); err != nil {
 					slog.Error("station: start librespot", "err", err)
 				}
+				s.staticAudio.Start()
 				if mode == events.ModeSpeaker {
 					go s.enterSpeakerMode()
 				} else {
@@ -60,6 +89,7 @@ func (s *Server) runStationController() {
 			} else {
 				go s.stopPlayback()
 			}
+
 		case events.KindTrackEnded:
 			// Music playlists advance automatically via Spotify's context; podcast
 			// episodes are played as single URIs so we must advance manually.
@@ -87,15 +117,16 @@ func (s *Server) switchStation(bucket int, mode string) {
 			slog.Debug("station: pause before static", "err", err)
 		}
 		s.amp.Unmute()
-		// Always restart static on bucket changes so each empty station seeks
-		// to a new random position (and may pick a different file).
-		s.staticAudio.Stop()
-		s.staticAudio.Start()
+		// Full volume for unassigned buckets; shuffle to a fresh position so
+		// each empty station sounds different.
+		s.staticAudio.SetGain(1.0)
+		s.staticAudio.Shuffle()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
 		return
 	}
 
-	s.staticAudio.Stop()
+	// Assigned bucket: static stays running at a gain the station controller
+	// will set based on tune quality. Publish KindStaticStopped so it knows.
 	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
 
 	stationName, stationImage, err := s.spotify.GetPlaylistInfo(ctx, station.PlaylistURI)
@@ -111,13 +142,15 @@ func (s *Server) switchStation(bucket int, mode string) {
 	tracks, err := s.spotify.GetTracksWithCache(ctx, station.PlaylistURI, s.store)
 	if err != nil {
 		slog.Error("station: fetch tracks", "uri", station.PlaylistURI, "err", err)
-		s.staticAudio.Start()
+		s.staticAudio.SetGain(1.0)
+		s.staticAudio.Shuffle()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
 		return
 	}
 	if len(tracks) == 0 {
 		slog.Warn("station: empty playlist — playing static", "uri", station.PlaylistURI)
-		s.staticAudio.Start()
+		s.staticAudio.SetGain(1.0)
+		s.staticAudio.Shuffle()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
 		return
 	}
@@ -203,6 +236,21 @@ func (s *Server) stopPlayback() {
 	}
 	s.amp.Mute()
 	s.librespot.Stop()
+}
+
+// staticGain converts a tune quality value (0–1) into a static audio gain.
+// At quality=1 (sweet spot) the gain is 0 (silent). Below 1 the gain is
+// floored to staticMinGain so static is immediately audible as soon as the
+// dial leaves the sweet spot, then ramps to 1.0 at the bucket boundary.
+func (s *Server) staticGain(quality float64) float64 {
+	if quality >= 1.0 {
+		return 0
+	}
+	gain := 1.0 - quality
+	if gain < s.staticMinGain {
+		gain = s.staticMinGain
+	}
+	return gain
 }
 
 // radioTimeOffset computes (trackIndex, positionMs) for "radio time": the

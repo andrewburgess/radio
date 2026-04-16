@@ -31,24 +31,26 @@ type Config struct {
 	ShowDebug bool
 
 	// Hardware
-	AmpGPIOPin       string
-	DialI2CBus       string
-	DialI2CAddr      string
-	DialCenterX      float64
-	DialCenterY      float64
-	DialMinAngle     float64
-	DialMaxAngle     float64
-	ToggleGPIOPinA   string // Row 2 → AM/music
-	ToggleGPIOPinB   string // Row 3 → AFC/speaker or FM/podcast
-	PowerGPIOPin     string
-	VolumeSPIDev     string
-	VolumeSPIChannel int
-	VolumeMinRaw     int
-	VolumeMaxRaw     int
-	VolumeMaxPct     int
-	VolumeCurve      float64
-	AlsaCard         string
-	AlsaMixerControl string
+	AmpGPIOPin          string
+	DialI2CBus          string
+	DialI2CAddr         string
+	DialCenterX         float64
+	DialCenterY         float64
+	DialMinAngle        float64
+	DialMaxAngle        float64
+	DialTuneForgiveness float64
+	DialStaticMinGain   float64
+	ToggleGPIOPinA      string // Row 2 → AM/music
+	ToggleGPIOPinB      string // Row 3 → AFC/speaker or FM/podcast
+	PowerGPIOPin        string
+	VolumeSPIDev        string
+	VolumeSPIChannel    int
+	VolumeMinRaw        int
+	VolumeMaxRaw        int
+	VolumeMaxPct        int
+	VolumeCurve         float64
+	AlsaCard            string
+	AlsaMixerControl    string
 }
 
 func loadDotEnv() {
@@ -148,6 +150,14 @@ func Load() (*Config, error) {
 	cfg.DialMaxAngle, err = getEnvFloat("DIAL_MAX_ANGLE", 270)
 	if err != nil {
 		return nil, fmt.Errorf("config: DIAL_MAX_ANGLE: %w", err)
+	}
+	cfg.DialTuneForgiveness, err = getEnvFloat("DIAL_TUNE_FORGIVENESS", 0.4)
+	if err != nil {
+		return nil, fmt.Errorf("config: DIAL_TUNE_FORGIVENESS: %w", err)
+	}
+	cfg.DialStaticMinGain, err = getEnvFloat("DIAL_STATIC_MIN_GAIN", 0.25)
+	if err != nil {
+		return nil, fmt.Errorf("config: DIAL_STATIC_MIN_GAIN: %w", err)
 	}
 	cfg.VolumeSPIChannel, err = getEnvInt("VOLUME_SPI_CHANNEL", 0)
 	if err != nil {

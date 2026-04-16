@@ -8,6 +8,8 @@ type Static struct{}
 
 func NewStatic(_ Config) *Static { return &Static{} }
 
-func (s *Static) Start()          {}
-func (s *Static) Stop()           {}
-func (s *Static) IsPlaying() bool { return false }
+func (s *Static) Start()            {}
+func (s *Static) Stop()             {}
+func (s *Static) IsPlaying() bool   { return false }
+func (s *Static) SetGain(_ float64) {}
+func (s *Static) Shuffle()          {}

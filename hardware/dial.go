@@ -42,32 +42,36 @@ const (
 // magnet mounting. centerX and centerY are the bounding-box midpoint of the
 // XY locus measured during calibration (output by cmd/dial-calibrate).
 type Dial struct {
-	bus         *events.Bus
-	i2cBus      string
-	i2cAddr     uint16
-	bucketCount int
-	centerX     float64
-	centerY     float64
-	minAngle    float64
-	maxAngle    float64
+	bus             *events.Bus
+	i2cBus          string
+	i2cAddr         uint16
+	bucketCount     int
+	centerX         float64
+	centerY         float64
+	minAngle        float64
+	maxAngle        float64
+	tuneForgiveness float64 // fraction of bucket width that is the sweet spot (0–1)
 
-	mu      sync.Mutex
-	stopCh  chan struct{}
-	stopped bool
+	mu          sync.Mutex
+	stopCh      chan struct{}
+	stopped     bool
+	lastQuality float64 // last emitted tune quality
 }
 
-func NewDial(bus *events.Bus, i2cBus, i2cAddr string, bucketCount int, centerX, centerY, minAngle, maxAngle float64) *Dial {
+func NewDial(bus *events.Bus, i2cBus, i2cAddr string, bucketCount int, centerX, centerY, minAngle, maxAngle, tuneForgiveness float64) *Dial {
 	addr := parseHexAddr(i2cAddr, 0x22)
 	return &Dial{
-		bus:         bus,
-		i2cBus:      i2cBus,
-		i2cAddr:     addr,
-		bucketCount: bucketCount,
-		centerX:     centerX,
-		centerY:     centerY,
-		minAngle:    minAngle,
-		maxAngle:    maxAngle,
-		stopCh:      make(chan struct{}),
+		bus:             bus,
+		i2cBus:          i2cBus,
+		i2cAddr:         addr,
+		bucketCount:     bucketCount,
+		centerX:         centerX,
+		centerY:         centerY,
+		minAngle:        minAngle,
+		maxAngle:        maxAngle,
+		tuneForgiveness: tuneForgiveness,
+		lastQuality:     -1, // force emit on first poll
+		stopCh:          make(chan struct{}),
 	}
 }
 
@@ -136,7 +140,19 @@ func (d *Dial) poll(dev *i2c.Dev, busRef interface{ Close() error }) {
 			}
 
 			bucket := d.angleToBucket(angle)
-			slog.Debug("dial: poll", "angle", angle, "bucket", bucket, "candidate", candidate, "stable", stable)
+			quality := d.tuneQuality(angle, bucket)
+			slog.Debug("dial: poll", "angle", angle, "bucket", bucket, "quality", quality, "candidate", candidate, "stable", stable)
+
+			// Emit quality changes when they cross 0/1 exactly or shift by more
+			// than a small threshold — avoids flooding the bus while stationary.
+			const qualityThreshold = 0.02
+			if quality != d.lastQuality &&
+				(math.Abs(quality-d.lastQuality) >= qualityThreshold ||
+					quality == 0 || quality == 1 ||
+					d.lastQuality == 0 || d.lastQuality == 1) {
+				d.bus.Publish(events.Event{Kind: events.KindTuneQualityChanged, TuneQuality: quality})
+				d.lastQuality = quality
+			}
 
 			if bucket == candidate {
 				stable++
@@ -204,6 +220,52 @@ func (d *Dial) angleToBucket(angle float64) int {
 		bucket = d.bucketCount - 1
 	}
 	return bucket
+}
+
+// tuneQuality returns how well the dial is centred within its current bucket.
+// 1.0 = in the sweet spot, 0.0 = at a bucket boundary.
+//
+// The sweet spot is the middle tuneForgiveness fraction of the bucket width.
+// Outside it the quality ramps linearly to 0 at the bucket edges. The outer
+// edges of the first and last bucket are always treated as in-tune so the
+// user never hears static at the physical dial stops.
+func (d *Dial) tuneQuality(angle float64, bucket int) float64 {
+	span := d.maxAngle - d.minAngle
+	if span == 0 {
+		return 1.0
+	}
+
+	// Normalised position [0,1] across the full calibrated arc.
+	norm := (angle - d.minAngle) / span
+	norm = math.Max(0, math.Min(1, norm))
+
+	// Position [0,1] within this specific bucket (0=left edge, 1=right edge).
+	bucketNorm := norm*float64(d.bucketCount) - float64(bucket)
+	bucketNorm = math.Max(0, math.Min(1, bucketNorm))
+
+	// The outer edges of the first and last bucket have no adjacent station,
+	// so clamp them to the centre to keep quality at 1.0 there.
+	if bucket == 0 && bucketNorm < 0.5 {
+		bucketNorm = 0.5
+	}
+	if bucket == d.bucketCount-1 && bucketNorm > 0.5 {
+		bucketNorm = 0.5
+	}
+
+	// Distance from centre of bucket (0=centre, 0.5=edge).
+	dist := math.Abs(bucketNorm - 0.5)
+
+	// Half-width of the sweet spot.
+	sweetHalf := d.tuneForgiveness * 0.5
+
+	switch {
+	case dist <= sweetHalf:
+		return 1.0
+	case dist >= 0.5:
+		return 0.0
+	default:
+		return 1.0 - (dist-sweetHalf)/(0.5-sweetHalf)
+	}
 }
 
 // parseHexAddr parses a hex string like "0x22" into a uint16. Returns

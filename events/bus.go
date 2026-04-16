@@ -12,6 +12,7 @@ const (
 	KindTrackChanged         Kind = iota
 	KindPlaybackStateChanged      // playing or paused
 	KindDialMoved                 // dial settled on a new bucket
+	KindTuneQualityChanged        // continuous dial position within the current bucket (0=boundary, 1=centre)
 	KindToggleSwitched            // AM/FM toggle changed mode
 	KindStaticStarted             // static audio began playing
 	KindStaticStopped             // static audio stopped
@@ -49,6 +50,9 @@ type Event struct {
 
 	// KindDialMoved
 	Bucket int
+
+	// KindTuneQualityChanged (0.0 = at a bucket boundary, 1.0 = in the sweet spot)
+	TuneQuality float64
 
 	// KindToggleSwitched
 	Mode Mode

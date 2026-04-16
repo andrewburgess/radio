@@ -142,6 +142,8 @@ Do not create files outside this structure without a good reason.
 | `DIAL_CENTER_Y`         | Y-axis magnetic center offset (from `cmd/dial-calibrate`) | `0`                   |
 | `DIAL_MIN_ANGLE`        | Start of usable arc in degrees (from `cmd/dial-calibrate`)| `0`                   |
 | `DIAL_MAX_ANGLE`        | End of usable arc in degrees (from `cmd/dial-calibrate`)  | `270`                 |
+| `DIAL_TUNE_FORGIVENESS` | Fraction of bucket width that is the sweet spot (0–1)     | `0.4`                 |
+| `DIAL_STATIC_MIN_GAIN`  | Minimum static gain outside the sweet spot (0–1)          | `0.25`                |
 | `IMAGE_CACHE_DIR`       | Directory for downloaded playlist cover images             | `image-cache`         |
 | `SHOW_DEBUG`            | Show the Debug link in the nav (`true` to enable)         | `false`               |
 
