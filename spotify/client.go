@@ -415,6 +415,30 @@ func (c *Client) GetPlaylistInfo(ctx context.Context, playlistURI string) (name,
 	return resp.Name, imageURL, nil
 }
 
+// GetPlaylistImageAndSnapshot returns the cover image URL and snapshot_id for a
+// playlist in a single API call. imageURL is empty if the playlist has no
+// images. Use this instead of separate calls when both values are needed, e.g.
+// for cache invalidation checks.
+func (c *Client) GetPlaylistImageAndSnapshot(ctx context.Context, playlistURI string) (imageURL, snapshotID string, err error) {
+	id := SpotifyID(playlistURI)
+	if id == "" {
+		return "", "", fmt.Errorf("spotify: invalid playlist URI %q", playlistURI)
+	}
+	var resp struct {
+		SnapshotID string `json:"snapshot_id"`
+		Images     []struct {
+			URL string `json:"url"`
+		} `json:"images"`
+	}
+	if err := c.get(ctx, "/playlists/"+id+"?fields=snapshot_id,images", &resp); err != nil {
+		return "", "", fmt.Errorf("spotify: get playlist image and snapshot: %w", err)
+	}
+	if len(resp.Images) > 0 {
+		imageURL = resp.Images[0].URL
+	}
+	return imageURL, resp.SnapshotID, nil
+}
+
 // GetPlaylistImage returns the URL of the cover image for a playlist,
 // preferring the largest available image. Returns an empty string if the
 // playlist has no images.

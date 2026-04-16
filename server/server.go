@@ -44,6 +44,7 @@ type Server struct {
 	librespot   LibrespotController
 	state       *radioState
 	broker      *sseBroker
+	imageDir    string
 }
 
 func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController, librespot LibrespotController) (*Server, error) {
@@ -80,6 +81,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 		librespot:   librespot,
 		state:       newRadioState(),
 		broker:      newSSEBroker(),
+		imageDir:    cfg.ImageCacheDir,
 	}
 
 	go s.runStateUpdater()
@@ -99,6 +101,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /config/podcast", s.handlePodcastConfig)
 	s.mux.HandleFunc("POST /config/podcast", s.handlePodcastConfigSave)
 	s.mux.HandleFunc("GET /api/playlists", s.handleAPIPlaylists)
+	s.mux.HandleFunc("GET /images/{filename}", s.handleImages)
 	s.mux.HandleFunc("GET /debug", s.handleDebug)
 	s.mux.HandleFunc("GET /debug/state", s.handleDebugState)
 	s.mux.HandleFunc("POST /debug/simulate", s.handleDebugSimulate)

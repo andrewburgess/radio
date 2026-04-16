@@ -142,11 +142,12 @@ Do not create files outside this structure without a good reason.
 | `DIAL_CENTER_Y`         | Y-axis magnetic center offset (from `cmd/dial-calibrate`) | `0`                   |
 | `DIAL_MIN_ANGLE`        | Start of usable arc in degrees (from `cmd/dial-calibrate`)| `0`                   |
 | `DIAL_MAX_ANGLE`        | End of usable arc in degrees (from `cmd/dial-calibrate`)  | `270`                 |
+| `IMAGE_CACHE_DIR`       | Directory for downloaded playlist cover images             | `image-cache`         |
 
 ## SQLite Schema
 
 Defined in full in PLAN.md (Phase 9). Tables: `stations`, `music_stations`,
-`podcast_shows`, `podcast_playlists`, `playlist_cache`, `tokens`.
+`podcast_shows`, `podcast_playlists`, `playlist_cache`, `image_cache`, `tokens`.
 
 Apply schema via embedded SQL in `store/store.go` on first open
 (`CREATE TABLE IF NOT EXISTS`).

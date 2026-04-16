@@ -1,3 +1,5 @@
+//go:build pi
+
 package audio
 
 import (
@@ -11,13 +13,6 @@ import (
 	"github.com/ebitengine/oto/v3"
 	mp3 "github.com/hajimehoshi/go-mp3"
 )
-
-// Config holds the parameters for the static audio player.
-type Config struct {
-	// Files is the list of MP3 files to choose from. One is selected at random
-	// each time Start is called and looped until Stop is called.
-	Files []string
-}
 
 // Static manages looping MP3 playback for no-signal buckets. A random file is
 // chosen from the list when Start is called and played on repeat until Stop is

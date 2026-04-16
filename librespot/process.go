@@ -315,7 +315,6 @@ func (p *Process) launch() error {
 		"--name", p.cfg.DeviceName,
 		"--device-type", p.cfg.DeviceType,
 		"--cache", p.cfg.CacheDir,
-		"--disable-audio-cache",
 		"--enable-oauth",
 		"--onevent", selfExe,
 	}

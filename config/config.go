@@ -24,6 +24,9 @@ type Config struct {
 	// Static audio
 	StaticAudioFiles []string
 
+	// Image cache
+	ImageCacheDir string
+
 	// Hardware
 	AmpGPIOPin       string
 	DialI2CBus       string
@@ -112,6 +115,8 @@ func Load() (*Config, error) {
 
 	// Static audio — comma-separated list of MP3 file paths.
 	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
+
+	cfg.ImageCacheDir = getEnv("IMAGE_CACHE_DIR", "image-cache")
 
 	// Hardware
 	cfg.AmpGPIOPin = getEnv("AMP_GPIO_PIN", "GPIO26")

@@ -38,6 +38,12 @@ var migrations = []string{
 		refresh_token TEXT    NOT NULL,
 		expires_at    INTEGER NOT NULL
 	);`,
+	// v2 — playlist image cache
+	`CREATE TABLE IF NOT EXISTS image_cache (
+		playlist_uri TEXT PRIMARY KEY,
+		snapshot_id  TEXT NOT NULL,
+		file_name    TEXT NOT NULL
+	);`,
 }
 
 // Store is the SQLite-backed persistence layer. It implements
@@ -311,4 +317,37 @@ func (s *Store) ListStations(mode string) ([]Station, error) {
 		stations = append(stations, st)
 	}
 	return stations, rows.Err()
+}
+
+// --- Image cache ---
+
+// GetImageCache returns the cached file name for playlistURI if an entry exists.
+// ok is false when there is no cached entry.
+func (s *Store) GetImageCache(playlistURI string) (snapshotID, fileName string, ok bool, err error) {
+	qErr := s.db.QueryRow(
+		`SELECT snapshot_id, file_name FROM image_cache WHERE playlist_uri = ?`,
+		playlistURI,
+	).Scan(&snapshotID, &fileName)
+	if qErr == sql.ErrNoRows {
+		return "", "", false, nil
+	}
+	if qErr != nil {
+		return "", "", false, fmt.Errorf("store: get image cache: %w", qErr)
+	}
+	return snapshotID, fileName, true, nil
+}
+
+// SetImageCache upserts the image cache entry for playlistURI.
+func (s *Store) SetImageCache(playlistURI, snapshotID, fileName string) error {
+	_, err := s.db.Exec(`
+		INSERT INTO image_cache (playlist_uri, snapshot_id, file_name)
+		VALUES (?, ?, ?)
+		ON CONFLICT(playlist_uri) DO UPDATE SET
+			snapshot_id = excluded.snapshot_id,
+			file_name   = excluded.file_name
+	`, playlistURI, snapshotID, fileName)
+	if err != nil {
+		return fmt.Errorf("store: set image cache: %w", err)
+	}
+	return nil
 }

@@ -62,7 +62,7 @@ func (s *Server) handleAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 // handleMusicConfig renders the music configuration page.
 func (s *Server) handleMusicConfig(w http.ResponseWriter, r *http.Request) {
-	s.renderStationConfig(w, r, "music")
+	s.renderStationConfig(w, "music")
 }
 
 // handleMusicConfigSave processes form submission from the music config page.
@@ -72,7 +72,7 @@ func (s *Server) handleMusicConfigSave(w http.ResponseWriter, r *http.Request) {
 
 // handlePodcastConfig renders the podcast configuration page.
 func (s *Server) handlePodcastConfig(w http.ResponseWriter, r *http.Request) {
-	s.renderStationConfig(w, r, "podcast")
+	s.renderStationConfig(w, "podcast")
 }
 
 // handlePodcastConfigSave processes form submission from the podcast config page.
@@ -138,7 +138,7 @@ func stationLabel(bucket, total int, mode string) string {
 }
 
 // renderStationConfig builds the bucket grid for music or podcast config pages.
-func (s *Server) renderStationConfig(w http.ResponseWriter, r *http.Request, mode string) {
+func (s *Server) renderStationConfig(w http.ResponseWriter, mode string) {
 	type bucketRow struct {
 		Index    int
 		Label    string
@@ -160,15 +160,13 @@ func (s *Server) renderStationConfig(w http.ResponseWriter, r *http.Request, mod
 	}
 
 	rows := make([]bucketRow, s.cfg.BucketCount)
+	var assignedURIs []string
 	for i := 0; i < s.cfg.BucketCount; i++ {
 		row := bucketRow{Index: i, Label: stationLabel(i, s.cfg.BucketCount, mode), URI: uriByBucket[i]}
 		if row.URI != "" {
-			imageURL, err := s.spotify.GetPlaylistImage(r.Context(), row.URI)
-			if err != nil {
-				slog.Warn("config: fetch playlist image failed", "mode", mode, "bucket", i, "err", err)
-			} else {
-				row.ImageURL = imageURL
-			}
+			// Render path: local cache only, no network calls.
+			row.ImageURL = s.localImageURL(row.URI)
+			assignedURIs = append(assignedURIs, row.URI)
 		}
 		rows[i] = row
 	}
@@ -177,6 +175,16 @@ func (s *Server) renderStationConfig(w http.ResponseWriter, r *http.Request, mod
 		"BucketCount": s.cfg.BucketCount,
 		"Buckets":     rows,
 	})
+
+	// After the response is sent, check snapshots and download any missing or
+	// stale images in the background so they're ready for the next page load.
+	if len(assignedURIs) > 0 {
+		go func() {
+			for _, uri := range assignedURIs {
+				s.cachedPlaylistImage(uri)
+			}
+		}()
+	}
 }
 
 // saveStationConfig persists form-submitted bucket URIs for music or podcast mode.
