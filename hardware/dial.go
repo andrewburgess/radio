@@ -194,7 +194,7 @@ func readSensorInt16(dev *i2c.Dev, reg byte) (int16, error) {
 
 func (d *Dial) angleToBucket(angle float64) int {
 	span := d.maxAngle - d.minAngle
-	if span <= 0 {
+	if span == 0 {
 		return 0
 	}
 	norm := (angle - d.minAngle) / span
