@@ -89,14 +89,18 @@ type Process struct {
 	eventAddr string
 	stopCh    chan struct{}
 	running   bool
+
+	sinkMu      sync.Mutex
+	sinkInputID int // cached PipeWire sink-input index; -1 when unknown
 }
 
 // New creates a Process. Call Start to launch librespot.
 func New(cfg Config) *Process {
 	return &Process{
-		cfg:    cfg,
-		Events: make(chan Event, 16),
-		stopCh: make(chan struct{}),
+		cfg:         cfg,
+		Events:      make(chan Event, 16),
+		stopCh:      make(chan struct{}),
+		sinkInputID: -1,
 	}
 }
 
@@ -196,6 +200,9 @@ func (p *Process) Stop() {
 		p.listener.Close()
 		p.listener = nil
 	}
+	p.sinkMu.Lock()
+	p.sinkInputID = -1
+	p.sinkMu.Unlock()
 }
 
 // startListener opens a TCP loopback listener that event forwarder subprocesses

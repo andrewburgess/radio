@@ -24,20 +24,31 @@ func (s *Server) runStationController() {
 	defer s.bus.Unsubscribe(ch)
 
 	var (
-		bucket      int
-		mode        = events.ModeMusic
-		powered     bool
-		assigned    bool    // true when current bucket has a playlist
-		tuneQuality float64 // latest value from KindTuneQualityChanged
-		prevQuality float64 // previous value, used to detect sweet-spot entry
+		bucket       int
+		mode         = events.ModeMusic
+		powered      bool
+		assigned     bool               // true when current bucket has a playlist
+		tuneQuality  float64            // latest value from KindTuneQualityChanged
+		prevQuality  float64            // previous value, used to detect sweet-spot entry
+		cancelSwitch context.CancelFunc = func() {}
 	)
+
+	// startSwitch cancels any in-flight switchStation goroutine then launches a
+	// new one. This ensures rapid dial movement doesn't stack up concurrent
+	// Spotify API calls that race to be the last writer.
+	startSwitch := func(b int, m string) {
+		cancelSwitch()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancelSwitch = cancel
+		go s.switchStation(ctx, b, m)
+	}
 
 	for e := range ch {
 		switch e.Kind {
 		case events.KindDialMoved:
 			bucket = e.Bucket
 			if powered && mode != events.ModeSpeaker {
-				go s.switchStation(bucket, string(mode))
+				startSwitch(bucket, string(mode))
 			}
 
 		case events.KindTuneQualityChanged:
@@ -68,9 +79,11 @@ func (s *Server) runStationController() {
 			mode = e.Mode
 			if powered {
 				if mode == events.ModeSpeaker {
+					cancelSwitch()
+					cancelSwitch = func() {}
 					go s.enterSpeakerMode()
 				} else {
-					go s.switchStation(bucket, string(mode))
+					startSwitch(bucket, string(mode))
 				}
 			}
 
@@ -82,11 +95,16 @@ func (s *Server) runStationController() {
 				}
 				s.staticAudio.Start()
 				if mode == events.ModeSpeaker {
+					cancelSwitch()
+					cancelSwitch = func() {}
 					go s.enterSpeakerMode()
 				} else {
-					go s.switchStation(bucket, string(mode))
+					startSwitch(bucket, string(mode))
 				}
 			} else {
+				// Cancel any in-flight switch before tearing down playback.
+				cancelSwitch()
+				cancelSwitch = func() {}
 				go s.stopPlayback()
 			}
 
@@ -94,7 +112,7 @@ func (s *Server) runStationController() {
 			// Music playlists advance automatically via Spotify's context; podcast
 			// episodes are played as single URIs so we must advance manually.
 			if powered && mode == events.ModePodcast {
-				go s.switchStation(bucket, string(mode))
+				startSwitch(bucket, string(mode))
 			}
 		}
 	}
@@ -102,12 +120,21 @@ func (s *Server) runStationController() {
 
 // switchStation looks up the station for bucket/mode and either starts Spotify
 // playback at the correct radio-time position or falls back to static audio.
-func (s *Server) switchStation(bucket int, mode string) {
-	ctx := context.Background()
+// ctx is cancelled by runStationController when a newer switch supersedes this one.
+const fadeDuration = 250 * time.Millisecond
+
+func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
+	s.librespot.FadeOut(ctx, fadeDuration)
+	if ctx.Err() != nil {
+		return
+	}
 
 	station, err := s.store.GetStation(bucket, mode)
 	if err != nil {
 		slog.Error("station: get station", "bucket", bucket, "mode", mode, "err", err)
+		return
+	}
+	if ctx.Err() != nil {
 		return
 	}
 
@@ -133,6 +160,9 @@ func (s *Server) switchStation(bucket int, mode string) {
 	if err != nil {
 		slog.Warn("station: fetch playlist info", "uri", station.PlaylistURI, "err", err)
 	}
+	if ctx.Err() != nil {
+		return
+	}
 	s.bus.Publish(events.Event{
 		Kind:            events.KindStationChanged,
 		StationName:     stationName,
@@ -148,17 +178,27 @@ func (s *Server) switchStation(bucket int, mode string) {
 		return
 	}
 	if len(tracks) == 0 {
-		slog.Warn("station: empty playlist — playing static", "uri", station.PlaylistURI)
+		slog.Info("station: empty playlist — playing static", "uri", station.PlaylistURI)
 		s.staticAudio.SetGain(1.0)
 		s.staticAudio.Shuffle()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
 		return
 	}
+	if ctx.Err() != nil {
+		return
+	}
 
 	deviceID, err := s.findDevice(ctx)
 	if err != nil {
+		if ctx.Err() != nil {
+			slog.Debug("station: switch cancelled during device lookup", "bucket", bucket, "mode", mode)
+			return
+		}
 		slog.Error("station: find device", "err", err)
 		// fall through with empty ID — Spotify targets the last active device
+	}
+	if ctx.Err() != nil {
+		return
 	}
 
 	if err := s.spotify.SetVolume(ctx, deviceID, 100); err != nil {
@@ -184,7 +224,10 @@ func (s *Server) switchStation(bucket int, mode string) {
 	}
 	if playErr != nil {
 		slog.Error("station: play", "err", playErr)
+		return
 	}
+
+	s.librespot.FadeIn(ctx, fadeDuration)
 }
 
 // findDevice returns the Spotify Connect device ID for the configured librespot

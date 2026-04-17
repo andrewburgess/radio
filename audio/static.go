@@ -268,7 +268,7 @@ func (s *Static) runFile(file string, stopCh <-chan struct{}) (reshuffled bool) 
 		s.mu.Unlock()
 	}()
 	player.Play()
-	slog.Info("static audio: playing", "file", file)
+	slog.Debug("static audio: playing", "file", file)
 
 	const checkInterval = 50 * time.Millisecond
 	ticker := time.NewTicker(checkInterval)

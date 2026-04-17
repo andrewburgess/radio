@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"andrewburgess.io/radio/audio"
 	"andrewburgess.io/radio/config"
@@ -29,6 +30,8 @@ type AmpController interface {
 type LibrespotController interface {
 	Start() error
 	Stop()
+	FadeOut(ctx context.Context, duration time.Duration)
+	FadeIn(ctx context.Context, duration time.Duration)
 }
 
 type Server struct {
