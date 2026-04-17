@@ -31,6 +31,7 @@ type LibrespotController interface {
 	Start() error
 	Stop()
 	FadeOut(ctx context.Context, duration time.Duration)
+	ArmFadeIn()
 	FadeIn(ctx context.Context, duration time.Duration)
 }
 

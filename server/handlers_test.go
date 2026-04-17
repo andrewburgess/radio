@@ -18,11 +18,13 @@ func TestStationLabel(t *testing.T) {
 		{"fm last", 11, 12, "music", "107.9 FM"},
 		{"fm middle", 5, 12, "music", "96.9 FM"},
 		// AM endpoints with 12 buckets
-		{"am first", 0, 12, "podcast", "530 AM"},
-		{"am last", 11, 12, "podcast", "1700 AM"},
+		{"am first", 0, 12, "podcast", "550 AM"},
+		{"am last", 11, 12, "podcast", "1600 AM"},
 		// Edge: single bucket
 		{"fm single", 0, 1, "music", "87.5 FM"},
-		{"am single", 0, 1, "podcast", "530 AM"},
+		{"am single", 0, 1, "podcast", "550 AM"},
+		// Speaker/AFC mode
+		{"speaker", 5, 12, "speaker", "AFC"},
 	}
 
 	for _, tt := range tests {

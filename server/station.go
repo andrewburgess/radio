@@ -216,6 +216,10 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 
 	s.amp.Unmute()
 
+	// Arm before Play so a fast EventPlaying fired between Play returning and
+	// FadeIn being called is not missed.
+	s.librespot.ArmFadeIn()
+
 	var playErr error
 	if strings.HasPrefix(trackURI, "spotify:episode:") {
 		playErr = s.spotify.PlayEpisode(ctx, deviceID, trackURI, posMs)

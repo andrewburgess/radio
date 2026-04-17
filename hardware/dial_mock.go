@@ -16,6 +16,7 @@ func NewDial(bus *events.Bus, i2cBus, i2cAddr string, bucketCount int, centerX, 
 
 func (d *Dial) Start() error {
 	d.bus.Publish(events.Event{Kind: events.KindDialMoved, Bucket: 0})
+	d.bus.Publish(events.Event{Kind: events.KindTuneQualityChanged, TuneQuality: 1.0})
 	return nil
 }
 

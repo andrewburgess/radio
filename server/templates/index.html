@@ -15,6 +15,12 @@
     .np-meta .highlight {
         color: #c8a84b;
     }
+    .np-quality-value {
+        transition: color 0.3s;
+    }
+    .np-quality-value.good   { color: #4caf50; }
+    .np-quality-value.ok     { color: #c8a84b; }
+    .np-quality-value.poor   { color: #888; }
     .np-card {
         display: flex;
         gap: 1.75rem;
@@ -141,7 +147,7 @@
 {{$static := .StaticPlaying}} {{$playing := .Playing}}
 
 <div class="np-meta">
-    <span id="np-bucket" class="highlight">{{.BucketLabel}}</span>
+    <span id="np-bucket" class="highlight">{{.BucketLabel}}</span>{{if ne (print .Mode) "speaker"}}<span id="np-quality-wrap">SIG <span id="np-quality" class="np-quality-value {{if ge .TuneQualityPct 100}}good{{else if ge .TuneQualityPct 50}}ok{{else}}poor{{end}}">{{.TuneQualityPct}}%</span></span>{{end}}
     <span id="np-mode"
         >{{if eq (print .Mode) "podcast"}}PODCAST{{else if eq (print .Mode) "speaker"}}SPEAKER{{else}}MUSIC{{end}}</span
     >
@@ -299,6 +305,18 @@
             set("np-mode", label);
             // Speaker mode hands off passively — keep the current artwork.
             if (d.mode !== "speaker") clearArtwork();
+            // Hide signal quality in speaker mode; it's irrelevant there.
+            const wrap = document.getElementById("np-quality-wrap");
+            if (wrap) wrap.style.display = d.mode === "speaker" ? "none" : "";
+        });
+
+        es.addEventListener("quality", function (e) {
+            const d = JSON.parse(e.data);
+            const el = document.getElementById("np-quality");
+            if (!el) return;
+            el.textContent = d.quality + "%";
+            el.className = "np-quality-value " +
+                (d.quality >= 100 ? "good" : d.quality >= 50 ? "ok" : "poor");
         });
 
         es.addEventListener("power", function (e) {

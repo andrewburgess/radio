@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -22,6 +23,7 @@ const (
 	sseEventPower    = "power"    // power on/off
 	sseEventVolume   = "volume"   // volume level 0–100
 	sseEventStation  = "station"  // station name/image resolved
+	sseEventQuality  = "quality"  // tune quality 0–100
 )
 
 // SSE payload types — one per event name.
@@ -65,6 +67,10 @@ type sseVolumePayload struct {
 type sseStationPayload struct {
 	Name     string `json:"name"`
 	ImageURL string `json:"image_url,omitempty"`
+}
+
+type sseQualityPayload struct {
+	Quality int `json:"quality"` // 0–100
 }
 
 // sseClient is one connected browser client.
@@ -179,6 +185,7 @@ func (s *Server) publishSnapshot(c *sseClient) {
 	send(sseEventPlayback, ssePlaybackPayload{Playing: snap.Playing})
 	send(sseEventStatic, sseStaticPayload{Playing: snap.StaticPlaying})
 	send(sseEventDial, sseDialPayload{Bucket: snap.Bucket, Label: snap.BucketLabel})
+	send(sseEventQuality, sseQualityPayload{Quality: snap.TuneQualityPct})
 	send(sseEventMode, sseModePayload{Mode: string(snap.Mode)})
 	send(sseEventPower, ssePowerPayload{On: snap.PowerOn})
 	send(sseEventVolume, sseVolumePayload{Volume: snap.Volume})
@@ -270,6 +277,9 @@ func (s *Server) runSSEPublisher() {
 		case events.KindPowerChanged:
 			s.broker.publish(sseEventPower, ssePowerPayload{On: e.PowerOn})
 			s.publishClearTrack()
+		case events.KindTuneQualityChanged:
+			pct := int(math.Round(e.TuneQuality * 100))
+			s.broker.publish(sseEventQuality, sseQualityPayload{Quality: pct})
 		case events.KindVolumeChanged:
 			s.broker.publish(sseEventVolume, sseVolumePayload{Volume: e.Volume})
 		case events.KindStationChanged:

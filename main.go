@@ -92,7 +92,7 @@ func main() {
 	defer staticAudio.Stop()
 
 	bus := events.New()
-	go forwardLibrespotEvents(librespotProc.Events, bus)
+	go forwardLibrespotEvents(librespotProc, bus)
 
 	amp := hardware.NewAmp(cfg.AmpGPIOPin)
 	if err := amp.Start(); err != nil {
@@ -151,8 +151,8 @@ func main() {
 }
 
 // forwardLibrespotEvents translates librespot events into bus events.
-func forwardLibrespotEvents(in <-chan librespot.Event, bus *events.Bus) {
-	for e := range in {
+func forwardLibrespotEvents(lp *librespot.Process, bus *events.Bus) {
+	for e := range lp.Events {
 		switch e.Type {
 		case librespot.EventTrackChanged:
 			bus.Publish(events.Event{
@@ -165,6 +165,7 @@ func forwardLibrespotEvents(in <-chan librespot.Event, bus *events.Bus) {
 				DurationMs: e.DurationMs,
 			})
 		case librespot.EventPlaying:
+			lp.NotifyPlaying()
 			bus.Publish(events.Event{
 				Kind:       events.KindPlaybackStateChanged,
 				Playing:    true,

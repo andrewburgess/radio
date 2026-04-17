@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -25,6 +26,7 @@ type eventEntry struct {
 type radioState struct {
 	mu              sync.RWMutex
 	bucket          int
+	tuneQuality     float64
 	mode            events.Mode
 	powerOn         bool
 	volume          int
@@ -43,9 +45,8 @@ type radioState struct {
 
 func newRadioState() *radioState {
 	return &radioState{
-		mode:    events.ModeMusic,
-		powerOn: false,
-		volume:  0,
+		mode:        events.ModeMusic,
+		tuneQuality: 1.0,
 	}
 }
 
@@ -54,6 +55,7 @@ func newRadioState() *radioState {
 type stateSnapshot struct {
 	Bucket          int
 	BucketLabel     string
+	TuneQualityPct  int
 	Mode            events.Mode
 	PowerOn         bool
 	Volume          int
@@ -79,6 +81,7 @@ func (rs *radioState) snapshot(bucketCount int) stateSnapshot {
 	return stateSnapshot{
 		Bucket:          rs.bucket,
 		BucketLabel:     stationLabel(rs.bucket, bucketCount, string(rs.mode)),
+		TuneQualityPct:  int(math.Round(rs.tuneQuality * 100)),
 		Mode:            rs.mode,
 		PowerOn:         rs.powerOn,
 		Volume:          rs.volume,
@@ -119,6 +122,9 @@ func (rs *radioState) update(e events.Event) {
 		rs.powerOn = e.PowerOn
 		rs.clearTrack()
 		desc = fmt.Sprintf("power_changed: on=%v", e.PowerOn)
+	case events.KindTuneQualityChanged:
+		rs.tuneQuality = e.TuneQuality
+		desc = fmt.Sprintf("tune_quality: %.0f%%", e.TuneQuality*100)
 	case events.KindVolumeChanged:
 		rs.volume = e.Volume
 		desc = fmt.Sprintf("volume_changed: %d%%", e.Volume)
