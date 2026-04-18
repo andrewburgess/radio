@@ -123,32 +123,32 @@ Do not create files outside this structure without a good reason.
 
 ## Environment Variables (config package)
 
-| Variable                | Description                                               | Default               |
-| ----------------------- | --------------------------------------------------------- | --------------------- |
-| `PORT`                  | HTTP listen port                                          | `8080`                |
-| `DB_PATH`               | Path to SQLite database file                              | `radio.db`            |
-| `LIBRESPOT_BIN`         | Path to librespot binary                                  | `librespot`           |
-| `LIBRESPOT_DEVICE_NAME` | Spotify Connect device name                               | `Zenith Radio`        |
-| `LIBRESPOT_DEVICE_TYPE` | Spotify Connect device type (e.g. `speaker`)              | `speaker`             |
-| `LIBRESPOT_CACHE_DIR`   | Directory for librespot credential/file cache             | `librespot-cache`     |
-| `LIBRESPOT_AUDIO_DEVICE`| ALSA device for librespot output (e.g. `plughw:CARD=Headphones,DEV=0`); empty = librespot default | `""` |
-| `BUCKET_COUNT`          | Number of dial stations                                   | `12`                  |
-| `STATIC_AUDIO_FILES`    | Comma-separated list of MP3 files for no-signal playback  | `static/noise.mp3`    |
-| `SPOTIFY_CLIENT_ID`     | Spotify app client ID                                     | required              |
-| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret                                 | required              |
-| `SPOTIFY_REDIRECT_URI`  | OAuth redirect URI for auth code flow                     | required              |
-| `PLAYLIST_CACHE_FILE`   | File-based playlist cache (migrated to SQLite in Phase 9) | `playlist-cache.json` |
-| `DIAL_CENTER_X`         | X-axis magnetic center offset (from `cmd/dial-calibrate`) | `0`                   |
-| `DIAL_CENTER_Y`         | Y-axis magnetic center offset (from `cmd/dial-calibrate`) | `0`                   |
-| `DIAL_MIN_ANGLE`        | Start of usable arc in degrees (from `cmd/dial-calibrate`)| `0`                   |
-| `DIAL_MAX_ANGLE`        | End of usable arc in degrees (from `cmd/dial-calibrate`)  | `270`                 |
-| `DIAL_TUNE_FORGIVENESS` | Fraction of bucket width that is the sweet spot (0–1)     | `0.4`                 |
-| `DIAL_STATIC_MIN_GAIN`  | Minimum static gain outside the sweet spot (0–1)          | `0.25`                |
-| `IMAGE_CACHE_DIR`       | Directory for downloaded playlist cover images             | `image-cache`         |
-| `SHOW_DEBUG`            | Show the Debug link in the nav (`true` to enable)         | `false`               |
-| `INTERSTITIAL_DIR`      | Root directory for DJ interstitial clips (`<dir>/<playlist-slug>/*.mp3`) | `interstitials` |
-| `INTERSTITIAL_DUCK_LEVEL` | Spotify volume % while an interstitial plays (0–100)    | `20`                  |
-| `INTERSTITIAL_CHANCE_INCREMENT` | Percent added to trigger chance per song since last interstitial | `10` |
+| Variable                        | Description                                                                                       | Default               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------- |
+| `PORT`                          | HTTP listen port                                                                                  | `8080`                |
+| `DB_PATH`                       | Path to SQLite database file                                                                      | `radio.db`            |
+| `LIBRESPOT_BIN`                 | Path to librespot binary                                                                          | `librespot`           |
+| `LIBRESPOT_DEVICE_NAME`         | Spotify Connect device name                                                                       | `Zenith Radio`        |
+| `LIBRESPOT_DEVICE_TYPE`         | Spotify Connect device type (e.g. `speaker`)                                                      | `speaker`             |
+| `LIBRESPOT_CACHE_DIR`           | Directory for librespot credential/file cache                                                     | `librespot-cache`     |
+| `LIBRESPOT_AUDIO_DEVICE`        | ALSA device for librespot output (e.g. `plughw:CARD=Headphones,DEV=0`); empty = librespot default | `""`                  |
+| `BUCKET_COUNT`                  | Number of dial stations                                                                           | `12`                  |
+| `STATIC_AUDIO_FILES`            | Comma-separated list of MP3 files for no-signal playback                                          | `static/noise.mp3`    |
+| `SPOTIFY_CLIENT_ID`             | Spotify app client ID                                                                             | required              |
+| `SPOTIFY_CLIENT_SECRET`         | Spotify app client secret                                                                         | required              |
+| `SPOTIFY_REDIRECT_URI`          | OAuth redirect URI for auth code flow                                                             | required              |
+| `PLAYLIST_CACHE_FILE`           | File-based playlist cache (migrated to SQLite in Phase 9)                                         | `playlist-cache.json` |
+| `DIAL_CENTER_X`                 | X-axis magnetic center offset (from `cmd/dial-calibrate`)                                         | `0`                   |
+| `DIAL_CENTER_Y`                 | Y-axis magnetic center offset (from `cmd/dial-calibrate`)                                         | `0`                   |
+| `DIAL_MIN_ANGLE`                | Start of usable arc in degrees (from `cmd/dial-calibrate`)                                        | `0`                   |
+| `DIAL_MAX_ANGLE`                | End of usable arc in degrees (from `cmd/dial-calibrate`)                                          | `270`                 |
+| `DIAL_TUNE_FORGIVENESS`         | Fraction of bucket width that is the sweet spot (0–1)                                             | `0.4`                 |
+| `DIAL_STATIC_MIN_GAIN`          | Minimum static gain outside the sweet spot (0–1)                                                  | `0.25`                |
+| `IMAGE_CACHE_DIR`               | Directory for downloaded playlist cover images                                                    | `image-cache`         |
+| `SHOW_DEBUG`                    | Show the Debug link in the nav (`true` to enable)                                                 | `false`               |
+| `INTERSTITIAL_DIR`              | Root directory for DJ interstitial clips (`<dir>/<playlist-slug>/*.mp3`)                          | `interstitials`       |
+| `INTERSTITIAL_DUCK_LEVEL`       | Spotify volume % while an interstitial plays (0–100)                                              | `20`                  |
+| `INTERSTITIAL_CHANCE_INCREMENT` | Percent added to trigger chance per song since last interstitial                                  | `10`                  |
 
 ## SQLite Schema
 
