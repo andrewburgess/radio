@@ -24,6 +24,7 @@ echo "    OK"
 # ---------------------------------------------------------------------------
 echo "==> Creating install directory $INSTALL_DIR..."
 sudo mkdir -p "$INSTALL_DIR/static"
+sudo mkdir -p "$INSTALL_DIR/interstitials"
 sudo chown "$USER:$USER" "$INSTALL_DIR"
 
 # ---------------------------------------------------------------------------
