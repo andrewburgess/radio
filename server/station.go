@@ -205,7 +205,7 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
 
 	stationName, stationImage, err := s.spotify.GetPlaylistInfo(ctx, station.PlaylistURI)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		slog.Warn("station: fetch playlist info", "uri", station.PlaylistURI, "err", err)
 	}
 	if ctx.Err() != nil {
