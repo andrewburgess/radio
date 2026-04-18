@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — build and install the Zenith Radio service on a Raspberry Pi.
+# install.sh - build and install the Zenith Radio service on a Raspberry Pi.
 #
 # Run from the repo root:
 #   ./scripts/install.sh
@@ -23,19 +23,23 @@ CGO_ENABLED=1 go build -tags pi -o radio .
 echo "    OK"
 
 # ---------------------------------------------------------------------------
-# 2. Install directories
+# 2. Install directories (sudo only here; chown so the rest runs as $USER)
 # ---------------------------------------------------------------------------
 echo "==> Creating install directory $INSTALL_DIR..."
 sudo mkdir -p "$INSTALL_DIR/static"
 sudo mkdir -p "$INSTALL_DIR/interstitials"
-sudo chown "$USER:$USER" "$INSTALL_DIR"
+sudo chown -R "$USER:$USER" "$INSTALL_DIR"
 
 # ---------------------------------------------------------------------------
 # 3. Copy binary and assets
 # ---------------------------------------------------------------------------
 echo "==> Installing binary..."
-sudo cp radio "$INSTALL_DIR/radio"
-sudo chmod 755 "$INSTALL_DIR/radio"
+cp radio "$INSTALL_DIR/radio"
+chmod 755 "$INSTALL_DIR/radio"
+
+echo "==> Installing librespot..."
+cp "$LIBRESPOT_BIN" "$INSTALL_DIR/librespot"
+chmod 755 "$INSTALL_DIR/librespot"
 
 echo "==> Installing static audio files..."
 shopt -s nullglob
@@ -45,43 +49,39 @@ if [ ${#static_files[@]} -gt 0 ]; then
     cp "${static_files[@]}" "$INSTALL_DIR/static/"
     echo "    Copied ${#static_files[@]} file(s) from static/"
 else
-    echo "    No .mp3 files found in static/ — skipping"
+    echo "    No .mp3 files found in static/ - skipping"
 fi
 
-echo "==> Installing librespot..."
-sudo cp "$LIBRESPOT_BIN" "$INSTALL_DIR/librespot"
-sudo chmod 755 "$INSTALL_DIR/librespot"
-
 # ---------------------------------------------------------------------------
-# 4. Config — prefer local .env; fall back to .env.example for first install
+# 4. Config - prefer local .env; fall back to .env.example for first install
 # ---------------------------------------------------------------------------
 if [ -f ".env" ]; then
     echo "==> Copying local .env to $INSTALL_DIR/.env"
     cp .env "$INSTALL_DIR/.env"
     chmod 600 "$INSTALL_DIR/.env"
 elif [ ! -f "$INSTALL_DIR/.env" ]; then
-    echo "==> No .env found — copying .env.example to $INSTALL_DIR/.env"
+    echo "==> No .env found - copying .env.example to $INSTALL_DIR/.env"
     cp .env.example "$INSTALL_DIR/.env"
     chmod 600 "$INSTALL_DIR/.env"
     echo ""
     echo "    *** Edit $INSTALL_DIR/.env before starting the service. ***"
     echo ""
 else
-    echo "==> No local .env and $INSTALL_DIR/.env already exists — leaving it untouched"
+    echo "==> No local .env and $INSTALL_DIR/.env already exists - leaving it untouched"
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Interstitials — sync from local directory if it exists
+# 5. Interstitials - sync from local directory if it exists
 # ---------------------------------------------------------------------------
 if [ -d "interstitials" ]; then
     echo "==> Syncing interstitials/ to $INSTALL_DIR/interstitials/..."
     rsync -a --info=stats2 interstitials/ "$INSTALL_DIR/interstitials/"
 else
-    echo "==> No local interstitials/ directory — skipping"
+    echo "==> No local interstitials/ directory - skipping"
 fi
 
 # ---------------------------------------------------------------------------
-# 6. systemd service
+# 6. systemd service (sudo required for /etc/systemd)
 # ---------------------------------------------------------------------------
 echo "==> Installing systemd service..."
 sed "s/__USER__/$USER/" scripts/radio.service \
