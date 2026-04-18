@@ -393,6 +393,19 @@ func (c *Client) SetVolume(ctx context.Context, deviceID string, percent int) er
 	return nil
 }
 
+// SetRepeat sets the repeat mode on deviceID (or the active device if empty).
+// state must be "off", "track", or "context".
+func (c *Client) SetRepeat(ctx context.Context, deviceID, state string) error {
+	path := "/me/player/repeat?state=" + state
+	if deviceID != "" {
+		path += "&device_id=" + deviceID
+	}
+	if err := c.put(ctx, path, nil); err != nil {
+		return fmt.Errorf("spotify: set repeat: %w", err)
+	}
+	return nil
+}
+
 // GetPlaylistInfo returns the name and cover image URL for a playlist in a
 // single API call. imageURL is empty if the playlist has no images.
 func (c *Client) GetPlaylistInfo(ctx context.Context, playlistURI string) (name, imageURL string, err error) {

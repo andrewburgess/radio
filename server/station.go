@@ -278,6 +278,11 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 		playErr = s.spotify.PlayEpisode(ctx, deviceID, trackURI, posMs)
 	} else {
 		playErr = s.spotify.Play(ctx, deviceID, station.PlaylistURI, trackIdx, posMs)
+		if playErr == nil {
+			if err := s.spotify.SetRepeat(ctx, deviceID, "context"); err != nil && ctx.Err() == nil {
+				slog.Warn("station: set repeat", "err", err)
+			}
+		}
 	}
 	if playErr != nil {
 		slog.Error("station: play", "err", playErr)
