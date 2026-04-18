@@ -1,0 +1,7 @@
+[Unit]
+Description=Zenith Radio - librespot cache cleanup
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=find /opt/radio/librespot-cache/files -type f -atime +7 -delete

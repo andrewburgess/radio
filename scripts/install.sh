@@ -81,15 +81,19 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 6. systemd service (sudo required for /etc/systemd)
+# 6. systemd service + cache cleanup timer (sudo required for /etc/systemd)
 # ---------------------------------------------------------------------------
 echo "==> Installing systemd service..."
 sed "s/__USER__/$USER/" scripts/radio.service \
     | sudo tee /etc/systemd/system/radio.service > /dev/null
 
+sudo cp scripts/radio-cache-cleanup.service /etc/systemd/system/radio-cache-cleanup.service
+sudo cp scripts/radio-cache-cleanup.timer   /etc/systemd/system/radio-cache-cleanup.timer
+
 sudo systemctl daemon-reload
 sudo systemctl enable radio
-echo "    Service enabled (radio.service)"
+sudo systemctl enable --now radio-cache-cleanup.timer
+echo "    Services enabled (radio.service, radio-cache-cleanup.timer)"
 
 # ---------------------------------------------------------------------------
 # 7. Done

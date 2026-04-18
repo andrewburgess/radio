@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily Zenith Radio librespot cache cleanup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+
+[Install]
+WantedBy=timers.target
