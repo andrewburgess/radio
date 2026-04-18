@@ -84,7 +84,7 @@ fi
 # 6. systemd service + cache cleanup timer (sudo required for /etc/systemd)
 # ---------------------------------------------------------------------------
 echo "==> Installing systemd service..."
-sed "s/__USER__/$USER/" scripts/radio.service \
+sed "s/__USER__/$USER/g; s/__UID__/$(id -u)/g" scripts/radio.service \
     | sudo tee /etc/systemd/system/radio.service > /dev/null
 
 sudo cp scripts/radio-cache-cleanup.service /etc/systemd/system/radio-cache-cleanup.service
@@ -94,6 +94,10 @@ sudo systemctl daemon-reload
 sudo systemctl enable radio
 sudo systemctl enable --now radio-cache-cleanup.timer
 echo "    Services enabled (radio.service, radio-cache-cleanup.timer)"
+
+# Enable lingering so the user's PipeWire session persists without an active login.
+loginctl enable-linger "$USER"
+echo "    Lingering enabled for $USER (keeps PipeWire alive for the system service)"
 
 # ---------------------------------------------------------------------------
 # 7. Done
