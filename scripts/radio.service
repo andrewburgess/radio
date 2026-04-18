@@ -8,6 +8,7 @@ Type=simple
 User=__USER__
 WorkingDirectory=/opt/radio
 EnvironmentFile=/opt/radio/.env
+Environment=XDG_RUNTIME_DIR=/run/user/%U
 ExecStart=/opt/radio/radio
 Restart=on-failure
 RestartSec=5
