@@ -4,8 +4,11 @@
 # Run from the repo root:
 #   ./scripts/install.sh
 #
-# Re-running is safe: the binary and static assets are always overwritten, but
-# /opt/radio/.env is never touched if it already exists.
+# Re-running is safe: the binary and static assets are always overwritten.
+# .env: copied from local .env if present, otherwise .env.example (only when
+#       no .env exists in the install dir yet).
+# interstitials/: synced from local interstitials/ if the directory exists.
+# static/:        all *.mp3 files from local static/ are copied.
 set -euo pipefail
 
 INSTALL_DIR=/opt/radio
@@ -34,31 +37,51 @@ echo "==> Installing binary..."
 sudo cp radio "$INSTALL_DIR/radio"
 sudo chmod 755 "$INSTALL_DIR/radio"
 
-echo "==> Installing static assets..."
-sudo cp static/noise.mp3 "$INSTALL_DIR/static/" 2>/dev/null || true
-sudo cp static/noise-2.mp3 "$INSTALL_DIR/static/" 2>/dev/null || true
+echo "==> Installing static audio files..."
+shopt -s nullglob
+static_files=(static/*.mp3)
+shopt -u nullglob
+if [ ${#static_files[@]} -gt 0 ]; then
+    cp "${static_files[@]}" "$INSTALL_DIR/static/"
+    echo "    Copied ${#static_files[@]} file(s) from static/"
+else
+    echo "    No .mp3 files found in static/ — skipping"
+fi
 
 echo "==> Installing librespot..."
 sudo cp "$LIBRESPOT_BIN" "$INSTALL_DIR/librespot"
 sudo chmod 755 "$INSTALL_DIR/librespot"
 
 # ---------------------------------------------------------------------------
-# 4. Config — only copy the example if no .env exists yet
+# 4. Config — prefer local .env; fall back to .env.example for first install
 # ---------------------------------------------------------------------------
-if [ ! -f "$INSTALL_DIR/.env" ]; then
+if [ -f ".env" ]; then
+    echo "==> Copying local .env to $INSTALL_DIR/.env"
+    cp .env "$INSTALL_DIR/.env"
+    chmod 600 "$INSTALL_DIR/.env"
+elif [ ! -f "$INSTALL_DIR/.env" ]; then
     echo "==> No .env found — copying .env.example to $INSTALL_DIR/.env"
-    sudo cp .env.example "$INSTALL_DIR/.env"
-    sudo chown "$USER:$USER" "$INSTALL_DIR/.env"
-    sudo chmod 600 "$INSTALL_DIR/.env"
+    cp .env.example "$INSTALL_DIR/.env"
+    chmod 600 "$INSTALL_DIR/.env"
     echo ""
     echo "    *** Edit $INSTALL_DIR/.env before starting the service. ***"
     echo ""
 else
-    echo "==> $INSTALL_DIR/.env already exists — leaving it untouched"
+    echo "==> No local .env and $INSTALL_DIR/.env already exists — leaving it untouched"
 fi
 
 # ---------------------------------------------------------------------------
-# 5. systemd service
+# 5. Interstitials — sync from local directory if it exists
+# ---------------------------------------------------------------------------
+if [ -d "interstitials" ]; then
+    echo "==> Syncing interstitials/ to $INSTALL_DIR/interstitials/..."
+    rsync -a --info=stats2 interstitials/ "$INSTALL_DIR/interstitials/"
+else
+    echo "==> No local interstitials/ directory — skipping"
+fi
+
+# ---------------------------------------------------------------------------
+# 6. systemd service
 # ---------------------------------------------------------------------------
 echo "==> Installing systemd service..."
 sed "s/__USER__/$USER/" scripts/radio.service \
@@ -69,7 +92,7 @@ sudo systemctl enable radio
 echo "    Service enabled (radio.service)"
 
 # ---------------------------------------------------------------------------
-# 6. Done
+# 7. Done
 # ---------------------------------------------------------------------------
 echo ""
 echo "Install complete."
