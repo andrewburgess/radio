@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"andrewburgess.io/radio/events"
+	radiolog "andrewburgess.io/radio/log"
 	"periph.io/x/conn/v3/i2c"
 	"periph.io/x/conn/v3/i2c/i2creg"
 	"periph.io/x/host/v3"
@@ -141,7 +142,7 @@ func (d *Dial) poll(dev *i2c.Dev, busRef interface{ Close() error }) {
 
 			bucket := d.angleToBucket(angle)
 			quality := d.tuneQuality(angle, bucket)
-			slog.Debug("dial: poll", "angle", angle, "bucket", bucket, "quality", quality, "candidate", candidate, "stable", stable)
+			slog.Log(nil, radiolog.LevelTrace, "dial: poll", "angle", angle, "bucket", bucket, "quality", quality, "candidate", candidate, "stable", stable)
 
 			// Emit quality changes when they cross 0/1 exactly or shift by more
 			// than a small threshold - avoids flooding the bus while stationary.

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"andrewburgess.io/radio/events"
 	"andrewburgess.io/radio/hardware"
 	"andrewburgess.io/radio/librespot"
+	radiolog "andrewburgess.io/radio/log"
 	"andrewburgess.io/radio/server"
 	"andrewburgess.io/radio/spotify"
 	"andrewburgess.io/radio/store"
@@ -29,11 +31,13 @@ func main() {
 		return
 	}
 
-	// Set log level via LOG_LEVEL env var (debug, info, warn, error).
-	// Defaults to info. Set LOG_LEVEL=debug to see per-poll dial readings.
+	// Set log level via LOG_LEVEL env var (trace, debug, info, warn, error).
+	// Defaults to info. Set LOG_LEVEL=trace to see per-poll dial readings.
 	{
 		var level slog.Level
-		if err := level.UnmarshalText([]byte(os.Getenv("LOG_LEVEL"))); err != nil {
+		if v := os.Getenv("LOG_LEVEL"); strings.EqualFold(v, "trace") {
+			level = radiolog.LevelTrace
+		} else if err := level.UnmarshalText([]byte(v)); err != nil {
 			level = slog.LevelInfo
 		}
 		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: level})))
