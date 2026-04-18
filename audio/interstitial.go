@@ -88,7 +88,7 @@ func (p *InterstitialPlayer) Play(ctx context.Context, clipPath string) error {
 }
 
 func (p *InterstitialPlayer) listClips(playlistURI string) ([]string, error) {
-	slug := slugForURI(playlistURI)
+	slug := SlugForURI(playlistURI)
 	if slug == "" {
 		return nil, fmt.Errorf("invalid playlist URI: %q", playlistURI)
 	}
@@ -104,28 +104,4 @@ func (p *InterstitialPlayer) listClips(playlistURI string) ([]string, error) {
 		}
 	}
 	return clips, nil
-}
-
-// slugForURI extracts the Spotify ID from either URI format:
-//
-//	spotify:playlist:ABC123             → "ABC123"
-//	https://open.spotify.com/playlist/ABC123?si=xyz → "ABC123"
-func slugForURI(uri string) string {
-	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
-		// Drop query string, take the last path segment.
-		if i := strings.IndexByte(uri, '?'); i >= 0 {
-			uri = uri[:i]
-		}
-		uri = strings.TrimRight(uri, "/")
-		if i := strings.LastIndexByte(uri, '/'); i >= 0 {
-			return uri[i+1:]
-		}
-		return ""
-	}
-	// Colon-separated Spotify URI: take the last segment.
-	parts := strings.Split(uri, ":")
-	if len(parts) == 0 {
-		return ""
-	}
-	return parts[len(parts)-1]
 }

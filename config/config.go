@@ -77,8 +77,10 @@ func loadDotEnv() {
 		}
 		key = strings.TrimSpace(key)
 		value = strings.TrimSpace(value)
-		// strip optional surrounding quotes
-		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
+		// strip optional surrounding quotes (single or double)
+		if len(value) >= 2 &&
+			((value[0] == '"' && value[len(value)-1] == '"') ||
+				(value[0] == '\'' && value[len(value)-1] == '\'')) {
 			value = value[1 : len(value)-1]
 		}
 		// don't overwrite vars already set in the environment

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"math"
@@ -197,12 +198,46 @@ func (s *Server) saveStationConfig(w http.ResponseWriter, r *http.Request, mode,
 		return
 	}
 
+	var assignedURIs []string
 	for i := 0; i < s.cfg.BucketCount; i++ {
 		uri := r.FormValue(fmt.Sprintf("bucket_%d", i))
 		if err := s.store.SetStation(i, mode, uri, ""); err != nil {
 			slog.Error("config: set station failed", "mode", mode, "bucket", i, "err", err)
 		}
+		if uri != "" {
+			assignedURIs = append(assignedURIs, uri)
+		}
 	}
 
 	http.Redirect(w, r, redirectTo, http.StatusSeeOther)
+
+	if len(assignedURIs) > 0 {
+		go func() {
+			for _, uri := range assignedURIs {
+				s.cacheStationLabel(uri, mode)
+			}
+		}()
+	}
+}
+
+// cacheStationLabel fetches the playlist name from Spotify and stores it as the
+// station label so offline tools (e.g. gen-interstitial) can display it.
+func (s *Server) cacheStationLabel(uri, mode string) {
+	name, _, err := s.spotify.GetPlaylistInfo(context.Background(), uri)
+	if err != nil {
+		slog.Warn("config: fetch playlist name failed", "uri", uri, "err", err)
+		return
+	}
+	stations, err := s.store.ListStations(mode)
+	if err != nil {
+		return
+	}
+	for _, st := range stations {
+		if st.PlaylistURI == uri {
+			if err := s.store.SetStation(st.Bucket, mode, uri, name); err != nil {
+				slog.Warn("config: update station label failed", "uri", uri, "err", err)
+			}
+			return
+		}
+	}
 }
