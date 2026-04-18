@@ -43,6 +43,10 @@ func (s *Server) runStationController() {
 		pendingInterstitialURI string
 		pendingInterstitialMs  int
 
+		// sessionLost is set when a session_disconnected event arrives while
+		// powered on, so that session_connected can trigger a resumption.
+		sessionLost bool
+
 		cancelSwitch       context.CancelFunc = func() {}
 		cancelInterstitial context.CancelFunc = func() {}
 	)
@@ -138,27 +142,6 @@ func (s *Server) runStationController() {
 				}
 			}
 
-		case events.KindPlaybackStateChanged:
-			// If a probability check passed on the last KindTrackChanged, arm the
-			// interstitial timer now that we know the actual playback position.
-			if pendingInterstitialURI != "" && e.Playing {
-				remaining := pendingInterstitialMs - e.PositionMs
-				delay := time.Duration(remaining-4000) * time.Millisecond
-				if delay < 0 {
-					delay = 0
-				}
-				playlistURI := pendingInterstitialURI
-				pendingInterstitialURI = ""
-				pendingInterstitialMs = 0
-				ctx, cancel := context.WithCancel(context.Background())
-				cancelInterstitial = cancel
-				interstitialTimer = time.AfterFunc(delay, func() {
-					interstitialRunning.Store(true)
-					defer interstitialRunning.Store(false)
-					s.playInterstitial(ctx, playlistURI)
-				})
-			}
-
 		case events.KindStationChanged:
 			currentPlaylistURI = e.PlaylistURI
 
@@ -185,6 +168,58 @@ func (s *Server) runStationController() {
 			// Music playlists advance automatically via Spotify's context; podcast
 			// episodes are played as single URIs so we must advance manually.
 			if powered && mode == events.ModePodcast {
+				startSwitch(bucket, string(mode))
+			}
+
+		case events.KindPlaybackStopped:
+			// librespot stopped — the session was transferred to another device.
+			// Cancel timers and stop our output, but leave powered=true so a
+			// reconnect can resume correctly.
+			if powered && mode != events.ModeSpeaker {
+				sessionLost = true
+				cancelAll()
+				go s.stopPlayback()
+			}
+
+		case events.KindSessionConnected:
+			// A Spotify Connect session was established. If we lost a session
+			// while powered on, this is the user returning to the radio.
+			if powered && sessionLost && mode != events.ModeSpeaker {
+				sessionLost = false
+				startSwitch(bucket, string(mode))
+			}
+
+		case events.KindSessionDisconnected:
+			// Session ended (logout or device transfer). Mirror power-off behaviour
+			// without changing the physical powered state.
+			if powered && mode != events.ModeSpeaker {
+				sessionLost = true
+				cancelAll()
+				go s.stopPlayback()
+			}
+
+		case events.KindPlaybackStateChanged:
+			// Arm the interstitial timer once we know the actual playback position.
+			if pendingInterstitialURI != "" && e.Playing {
+				remaining := pendingInterstitialMs - e.PositionMs
+				delay := time.Duration(remaining-4000) * time.Millisecond
+				if delay < 0 {
+					delay = 0
+				}
+				playlistURI := pendingInterstitialURI
+				pendingInterstitialURI = ""
+				pendingInterstitialMs = 0
+				ctx, cancel := context.WithCancel(context.Background())
+				cancelInterstitial = cancel
+				interstitialTimer = time.AfterFunc(delay, func() {
+					interstitialRunning.Store(true)
+					defer interstitialRunning.Store(false)
+					s.playInterstitial(ctx, playlistURI)
+				})
+			}
+			// Resume immediately if librespot was paused externally (e.g. from
+			// a phone) while the radio is supposed to be playing continuously.
+			if !e.Playing && powered && mode != events.ModeSpeaker && assigned {
 				startSwitch(bucket, string(mode))
 			}
 		}

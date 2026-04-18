@@ -180,15 +180,21 @@ func forwardLibrespotEvents(lp *librespot.Process, bus *events.Bus) {
 				PositionMs: e.PositionMs,
 				TrackURI:   e.TrackID,
 			})
-		case librespot.EventPaused, librespot.EventStopped:
+		case librespot.EventPaused:
 			bus.Publish(events.Event{
 				Kind:       events.KindPlaybackStateChanged,
 				Playing:    false,
 				PositionMs: e.PositionMs,
 				TrackURI:   e.TrackID,
 			})
+		case librespot.EventStopped:
+			bus.Publish(events.Event{Kind: events.KindPlaybackStopped})
 		case librespot.EventEndOfTrack:
 			bus.Publish(events.Event{Kind: events.KindTrackEnded})
+		case librespot.EventSessionConnected:
+			bus.Publish(events.Event{Kind: events.KindSessionConnected})
+		case librespot.EventSessionDisconnected:
+			bus.Publish(events.Event{Kind: events.KindSessionDisconnected})
 		}
 	}
 }

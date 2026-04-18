@@ -10,7 +10,8 @@ type Kind int
 
 const (
 	KindTrackChanged         Kind = iota
-	KindPlaybackStateChanged      // playing or paused
+	KindPlaybackStateChanged      // playing or paused (not stopped/transferred)
+	KindPlaybackStopped           // librespot stopped — session transferred to another device
 	KindDialMoved                 // dial settled on a new bucket
 	KindTuneQualityChanged        // continuous dial position within the current bucket (0=boundary, 1=centre)
 	KindToggleSwitched            // AM/FM toggle changed mode
@@ -20,6 +21,8 @@ const (
 	KindVolumeChanged             // volume pot position changed (0–100)
 	KindStationChanged            // tuned to a new station (name/image resolved)
 	KindTrackEnded                // librespot reported end_of_track
+	KindSessionConnected          // Spotify Connect session established
+	KindSessionDisconnected       // Spotify Connect session ended (device transfer or logout)
 )
 
 // Mode represents the AM/FM toggle position.
