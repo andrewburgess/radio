@@ -17,7 +17,7 @@ that starts automatically on boot.
 
 ```sh
 ./scripts/install.sh
-sudo systemctl start radio
+systemctl --user start radio
 ```
 
 What the script does:
@@ -33,10 +33,10 @@ After the first install, edit `/opt/radio/.env` with your Spotify credentials
 before starting the service. Subsequent reinstalls never overwrite `.env`.
 
 ```sh
-sudo systemctl restart radio     # after a reinstall
-sudo systemctl status radio
-journalctl -u radio -f           # follow logs
-journalctl -u radio -f --output cat   # plain output, easier to read
+systemctl --user restart radio              # after a reinstall
+systemctl --user status radio
+journalctl --user -u radio -f              # follow logs
+journalctl --user -u radio -f --output cat # plain output, easier to read
 ```
 
 The service runs as your user and is granted `CAP_NET_BIND_SERVICE` so it can

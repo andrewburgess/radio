@@ -5,15 +5,14 @@
 #   ./scripts/install.sh
 #
 # Re-running is safe: the binary and static assets are always overwritten.
-# .env: copied from local .env if present, otherwise .env.example (only when
-#       no .env exists in the install dir yet).
+# .env: only written on first install (never overwritten on reinstall).
 # interstitials/: synced from local interstitials/ if the directory exists.
 # static/:        all *.mp3 files from local static/ are copied.
 set -euo pipefail
 
 INSTALL_DIR=/opt/radio
-SERVICE_NAME=radio
 LIBRESPOT_BIN=bin/librespot-linux-arm64
+USER_SYSTEMD_DIR="$HOME/.config/systemd/user"
 
 # ---------------------------------------------------------------------------
 # 1. Build
@@ -36,6 +35,7 @@ sudo chown -R "$USER:$USER" "$INSTALL_DIR"
 echo "==> Installing binary..."
 cp radio "$INSTALL_DIR/radio"
 chmod 755 "$INSTALL_DIR/radio"
+sudo setcap 'cap_net_bind_service=+ep' "$INSTALL_DIR/radio"
 
 echo "==> Installing librespot..."
 cp "$LIBRESPOT_BIN" "$INSTALL_DIR/librespot"
@@ -81,23 +81,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 6. systemd service + cache cleanup timer (sudo required for /etc/systemd)
+# 6. User systemd service + cache cleanup timer
+#    User services start after the user's PipeWire session is ready, which
+#    avoids the race condition where a system service starts before PipeWire.
+#    loginctl enable-linger ensures the user session starts at boot.
 # ---------------------------------------------------------------------------
-echo "==> Installing systemd service..."
-sed "s/__USER__/$USER/g; s/__UID__/$(id -u)/g" scripts/radio.service \
-    | sudo tee /etc/systemd/system/radio.service > /dev/null
+echo "==> Installing user systemd service..."
+mkdir -p "$USER_SYSTEMD_DIR"
+cp scripts/radio.service               "$USER_SYSTEMD_DIR/radio.service"
+cp scripts/radio-cache-cleanup.service "$USER_SYSTEMD_DIR/radio-cache-cleanup.service"
+cp scripts/radio-cache-cleanup.timer   "$USER_SYSTEMD_DIR/radio-cache-cleanup.timer"
 
-sudo cp scripts/radio-cache-cleanup.service /etc/systemd/system/radio-cache-cleanup.service
-sudo cp scripts/radio-cache-cleanup.timer   /etc/systemd/system/radio-cache-cleanup.timer
-
-sudo systemctl daemon-reload
-sudo systemctl enable radio
-sudo systemctl enable --now radio-cache-cleanup.timer
+systemctl --user daemon-reload
+systemctl --user enable radio
+systemctl --user enable --now radio-cache-cleanup.timer
 echo "    Services enabled (radio.service, radio-cache-cleanup.timer)"
 
-# Enable lingering so the user's PipeWire session persists without an active login.
 loginctl enable-linger "$USER"
-echo "    Lingering enabled for $USER (keeps PipeWire alive for the system service)"
+echo "    Lingering enabled for $USER (user session starts at boot)"
 
 # ---------------------------------------------------------------------------
 # 7. Done
@@ -106,8 +107,8 @@ echo ""
 echo "Install complete."
 echo ""
 echo "Useful commands:"
-echo "  sudo systemctl start radio      # start now"
-echo "  sudo systemctl restart radio    # restart after a reinstall"
-echo "  sudo systemctl status radio     # check status"
-echo "  journalctl -u radio -f          # follow logs"
-echo "  journalctl -u radio -f --output cat  # plain log output (easier to read)"
+echo "  systemctl --user start radio      # start now"
+echo "  systemctl --user restart radio    # restart after a reinstall"
+echo "  systemctl --user status radio     # check status"
+echo "  journalctl --user -u radio -f     # follow logs"
+echo "  journalctl --user -u radio -f --output cat  # plain log output"
