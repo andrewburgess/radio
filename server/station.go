@@ -33,16 +33,22 @@ func (s *Server) runStationController() {
 		prevQuality        float64 // previous value, used to detect sweet-spot entry
 		currentPlaylistURI string
 		interstitialSongs  = make(map[string]int) // songs since last interstitial, per playlist URI
+		interstitialTimer  *time.Timer            // pending pre-end-of-track trigger
 
 		cancelSwitch       context.CancelFunc = func() {}
 		cancelInterstitial context.CancelFunc = func() {}
 	)
 
-	// cancelAll stops any in-flight station switch and any playing interstitial.
+	// cancelAll stops any in-flight station switch, pending interstitial timer,
+	// and any currently playing interstitial.
 	cancelAll := func() {
 		cancelSwitch()
 		cancelInterstitial()
 		cancelInterstitial = func() {}
+		if interstitialTimer != nil {
+			interstitialTimer.Stop()
+			interstitialTimer = nil
+		}
 	}
 
 	// startSwitch cancels any in-flight switchStation goroutine then launches a
@@ -98,6 +104,36 @@ func (s *Server) runStationController() {
 				}
 			}
 
+		case events.KindTrackChanged:
+			// Cancel any timer/interstitial scheduled for the previous track.
+			cancelInterstitial()
+			cancelInterstitial = func() {}
+			if interstitialTimer != nil {
+				interstitialTimer.Stop()
+				interstitialTimer = nil
+			}
+			// Schedule an interstitial 4 s before this track ends (music mode only).
+			if powered && mode == events.ModeMusic && currentPlaylistURI != "" {
+				if s.interstitials.HasClips(currentPlaylistURI) {
+					songs := interstitialSongs[currentPlaylistURI] + 1
+					interstitialSongs[currentPlaylistURI] = songs
+					chance := float64(songs) * s.cfg.InterstitialChanceIncrement / 100.0
+					if rand.Float64() < chance {
+						interstitialSongs[currentPlaylistURI] = 0
+						delay := time.Duration(e.DurationMs-4000) * time.Millisecond
+						if delay < 0 {
+							delay = 0
+						}
+						playlistURI := currentPlaylistURI
+						ctx, cancel := context.WithCancel(context.Background())
+						cancelInterstitial = cancel
+						interstitialTimer = time.AfterFunc(delay, func() {
+							go s.playInterstitial(ctx, playlistURI)
+						})
+					}
+				}
+			}
+
 		case events.KindStationChanged:
 			currentPlaylistURI = e.PlaylistURI
 
@@ -125,21 +161,6 @@ func (s *Server) runStationController() {
 			// episodes are played as single URIs so we must advance manually.
 			if powered && mode == events.ModePodcast {
 				startSwitch(bucket, string(mode))
-			}
-			// Maybe play a DJ interstitial between music tracks.
-			if powered && mode == events.ModeMusic && currentPlaylistURI != "" {
-				if s.interstitials.HasClips(currentPlaylistURI) {
-					songs := interstitialSongs[currentPlaylistURI] + 1
-					interstitialSongs[currentPlaylistURI] = songs
-					chance := float64(songs) * s.cfg.InterstitialChanceIncrement / 100.0
-					if rand.Float64() < chance {
-						interstitialSongs[currentPlaylistURI] = 0
-						cancelAll()
-						ctx, cancel := context.WithCancel(context.Background())
-						cancelInterstitial = cancel
-						go s.playInterstitial(ctx, currentPlaylistURI)
-					}
-				}
 			}
 		}
 	}
