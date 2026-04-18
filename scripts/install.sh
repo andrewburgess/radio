@@ -53,21 +53,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Config - prefer local .env; fall back to .env.example for first install
+# 4. Config - only write .env if one doesn't already exist in the install dir
 # ---------------------------------------------------------------------------
-if [ -f ".env" ]; then
+if [ -f "$INSTALL_DIR/.env" ]; then
+    echo "==> $INSTALL_DIR/.env already exists - leaving it untouched"
+elif [ -f ".env" ]; then
     echo "==> Copying local .env to $INSTALL_DIR/.env"
     cp .env "$INSTALL_DIR/.env"
     chmod 600 "$INSTALL_DIR/.env"
-elif [ ! -f "$INSTALL_DIR/.env" ]; then
+else
     echo "==> No .env found - copying .env.example to $INSTALL_DIR/.env"
     cp .env.example "$INSTALL_DIR/.env"
     chmod 600 "$INSTALL_DIR/.env"
     echo ""
     echo "    *** Edit $INSTALL_DIR/.env before starting the service. ***"
     echo ""
-else
-    echo "==> No local .env and $INSTALL_DIR/.env already exists - leaving it untouched"
 fi
 
 # ---------------------------------------------------------------------------
