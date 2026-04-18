@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"math"
@@ -40,6 +41,7 @@ type radioState struct {
 	artworkURL      string
 	stationName     string
 	stationImageURL string
+	playlistURI     string
 	recentEvents    []eventEntry
 }
 
@@ -69,6 +71,7 @@ type stateSnapshot struct {
 	ArtworkURL      string
 	StationName     string
 	StationImageURL string
+	PlaylistURI     string
 	RecentEvents    []eventEntry
 	BucketMaxIndex  int
 }
@@ -95,6 +98,7 @@ func (rs *radioState) snapshot(bucketCount int) stateSnapshot {
 		ArtworkURL:      rs.artworkURL,
 		StationName:     rs.stationName,
 		StationImageURL: rs.stationImageURL,
+		PlaylistURI:     rs.playlistURI,
 		RecentEvents:    ev,
 		BucketMaxIndex:  bucketCount - 1,
 	}
@@ -146,6 +150,7 @@ func (rs *radioState) update(e events.Event) {
 	case events.KindStationChanged:
 		rs.stationName = e.StationName
 		rs.stationImageURL = e.StationImageURL
+		rs.playlistURI = e.PlaylistURI
 		desc = fmt.Sprintf("station_changed: %q", e.StationName)
 	case events.KindStaticStarted:
 		rs.staticPlaying = true
@@ -179,6 +184,7 @@ func (rs *radioState) clearTrack() {
 	rs.artworkURL = ""
 	rs.stationName = ""
 	rs.stationImageURL = ""
+	rs.playlistURI = ""
 	rs.playing = false
 	// staticPlaying is intentionally left unchanged — KindStaticStarted/Stopped
 	// owns that field. Clearing it here causes empty→empty bucket transitions to
@@ -205,6 +211,21 @@ func (s *Server) handleDebug(w http.ResponseWriter, r *http.Request) {
 // handleDebugState returns the polled state fragment (includes OOB event log).
 func (s *Server) handleDebugState(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "debug", "debug-state-poll", s.state.snapshot(s.cfg.BucketCount))
+}
+
+// handleDebugInterstitial immediately plays an interstitial clip for the
+// current station, bypassing the probability logic. No-ops if no station is
+// active or no clips exist for it.
+func (s *Server) handleDebugInterstitial(w http.ResponseWriter, r *http.Request) {
+	snap := s.state.snapshot(s.cfg.BucketCount)
+	if snap.PlaylistURI == "" {
+		slog.Debug("debug: interstitial: no active station")
+	} else if !s.interstitials.HasClips(snap.PlaylistURI) {
+		slog.Debug("debug: interstitial: no clips for station", "uri", snap.PlaylistURI)
+	} else {
+		go s.playInterstitial(context.Background(), snap.PlaylistURI)
+	}
+	s.render(w, "debug", "debug-state-poll", snap)
 }
 
 // handleDebugSimulate fires a synthetic event onto the bus and returns the

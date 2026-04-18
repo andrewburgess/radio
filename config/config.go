@@ -24,6 +24,11 @@ type Config struct {
 	// Static audio
 	StaticAudioFiles []string
 
+	// Interstitial DJ clips
+	InterstitialDir             string
+	InterstitialDuckLevel       int
+	InterstitialChanceIncrement float64
+
 	// Image cache
 	ImageCacheDir string
 
@@ -120,6 +125,16 @@ func Load() (*Config, error) {
 
 	// Static audio — comma-separated list of MP3 file paths.
 	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
+
+	cfg.InterstitialDir = getEnv("INTERSTITIAL_DIR", "interstitials")
+	cfg.InterstitialDuckLevel, err = getEnvInt("INTERSTITIAL_DUCK_LEVEL", 20)
+	if err != nil {
+		return nil, fmt.Errorf("config: INTERSTITIAL_DUCK_LEVEL: %w", err)
+	}
+	cfg.InterstitialChanceIncrement, err = getEnvFloat("INTERSTITIAL_CHANCE_INCREMENT", 10)
+	if err != nil {
+		return nil, fmt.Errorf("config: INTERSTITIAL_CHANCE_INCREMENT: %w", err)
+	}
 
 	cfg.ImageCacheDir = getEnv("IMAGE_CACHE_DIR", "image-cache")
 	cfg.ShowDebug = os.Getenv("SHOW_DEBUG") == "true"

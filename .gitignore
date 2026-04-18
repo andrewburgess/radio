@@ -1,5 +1,6 @@
 cache
 image-cache
+interstitials
 .env
 *.db
 radio

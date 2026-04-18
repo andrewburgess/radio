@@ -146,6 +146,9 @@ Do not create files outside this structure without a good reason.
 | `DIAL_STATIC_MIN_GAIN`  | Minimum static gain outside the sweet spot (0–1)          | `0.25`                |
 | `IMAGE_CACHE_DIR`       | Directory for downloaded playlist cover images             | `image-cache`         |
 | `SHOW_DEBUG`            | Show the Debug link in the nav (`true` to enable)         | `false`               |
+| `INTERSTITIAL_DIR`      | Root directory for DJ interstitial clips (`<dir>/<playlist-slug>/*.mp3`) | `interstitials` |
+| `INTERSTITIAL_DUCK_LEVEL` | Spotify volume % while an interstitial plays (0–100)    | `20`                  |
+| `INTERSTITIAL_CHANCE_INCREMENT` | Percent added to trigger chance per song since last interstitial | `10` |
 
 ## SQLite Schema
 

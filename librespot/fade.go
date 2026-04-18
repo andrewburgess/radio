@@ -37,12 +37,11 @@ func (p *Process) ArmFadeIn() {
 	p.sinkMu.Unlock()
 }
 
-// FadeOut fades the librespot PipeWire sink input from its current level to 0%
-// over duration. Uses the cached sink ID from a prior FadeIn when available,
-// falling back to a pactl lookup. No-op if the sink cannot be found.
-// Does NOT snap to 0 on context cancellation — leaves the volume wherever the
-// fade stopped so the next FadeOut doesn't create an audible bump by jumping
-// back to 100% before starting to ramp.
+// FadeOut fades the librespot PipeWire sink input from its current volume to 0%
+// over duration. Uses currentVolPct as the starting point so it handles cases
+// where the sink is already at a reduced level (e.g. ducked for an interstitial).
+// Uses the cached sink ID when available, falling back to a pactl lookup.
+// No-op if the sink cannot be found.
 func (p *Process) FadeOut(ctx context.Context, duration time.Duration) {
 	id := p.cachedSinkID()
 	if id < 0 {
@@ -56,7 +55,12 @@ func (p *Process) FadeOut(ctx context.Context, duration time.Duration) {
 		p.sinkInputID = id
 		p.sinkMu.Unlock()
 	}
-	if err := fadeSink(ctx, id, 100, 0, duration); err != nil {
+
+	p.sinkMu.Lock()
+	fromPct := p.currentVolPct
+	p.sinkMu.Unlock()
+
+	if err := p.fadeSink(ctx, id, fromPct, 0, duration); err != nil {
 		p.invalidateSinkID()
 	}
 }
@@ -95,15 +99,65 @@ func (p *Process) FadeIn(ctx context.Context, duration time.Duration) {
 		p.sinkMu.Unlock()
 	}
 
-	_ = setSinkVolume(id, 0)
-	if err := fadeSink(ctx, id, 0, 100, duration); err != nil {
+	_ = p.setSinkVolume(id, 0)
+	if err := p.fadeSink(ctx, id, 0, 100, duration); err != nil {
 		p.invalidateSinkID()
 		return
 	}
-	// Safety net: guarantee full volume even if a step didn't land exactly at
-	// 100 or the final pactl call was slightly off.
+	// Safety net: guarantee full volume even if a step didn't land exactly at 100.
 	if ctx.Err() == nil {
-		_ = setSinkVolume(id, 100)
+		_ = p.setSinkVolume(id, 100)
+	}
+}
+
+// Duck fades the librespot PipeWire sink input from its current volume to
+// targetPct over duration. Used to lower Spotify volume while an interstitial
+// clip plays on top.
+func (p *Process) Duck(ctx context.Context, targetPct int, duration time.Duration) {
+	id := p.cachedSinkID()
+	if id < 0 {
+		var err error
+		id, err = findSinkInputID()
+		if err != nil {
+			slog.Debug("librespot: duck: sink not found", "err", err)
+			return
+		}
+		p.sinkMu.Lock()
+		p.sinkInputID = id
+		p.sinkMu.Unlock()
+	}
+
+	p.sinkMu.Lock()
+	fromPct := p.currentVolPct
+	p.sinkMu.Unlock()
+
+	if err := p.fadeSink(ctx, id, fromPct, targetPct, duration); err != nil {
+		p.invalidateSinkID()
+	}
+}
+
+// Unduck fades the librespot PipeWire sink input from its current volume back
+// to 100% over duration. Called after an interstitial clip finishes playing.
+func (p *Process) Unduck(ctx context.Context, duration time.Duration) {
+	id := p.cachedSinkID()
+	if id < 0 {
+		var err error
+		id, err = findSinkInputID()
+		if err != nil {
+			slog.Debug("librespot: unduck: sink not found", "err", err)
+			return
+		}
+		p.sinkMu.Lock()
+		p.sinkInputID = id
+		p.sinkMu.Unlock()
+	}
+
+	p.sinkMu.Lock()
+	fromPct := p.currentVolPct
+	p.sinkMu.Unlock()
+
+	if err := p.fadeSink(ctx, id, fromPct, 100, duration); err != nil {
+		p.invalidateSinkID()
 	}
 }
 
@@ -124,11 +178,11 @@ func (p *Process) invalidateSinkID() {
 // the volume to `from` — this avoids an audible bump if a prior fade left the
 // volume at a different level. Returns an error if a pactl call fails (stale
 // sink ID); the caller should invalidate the cache in that case.
-func fadeSink(ctx context.Context, id, from, to int, duration time.Duration) error {
+func (p *Process) fadeSink(ctx context.Context, id, from, to int, duration time.Duration) error {
 	stepInterval := duration / fadeSteps
 	for i := 1; i <= fadeSteps; i++ {
 		pct := from + (to-from)*i/fadeSteps
-		if err := setSinkVolume(id, pct); err != nil {
+		if err := p.setSinkVolume(id, pct); err != nil {
 			slog.Debug("librespot: set sink volume", "id", id, "pct", pct, "err", err)
 			return err
 		}
@@ -197,7 +251,15 @@ func parseSinkInputID(data []byte) (int, bool) {
 	return -1, false
 }
 
-func setSinkVolume(id, pct int) error {
-	return exec.Command("pactl", "set-sink-input-volume",
+// setSinkVolume calls pactl to set the PipeWire sink-input volume and records
+// the new level in p.currentVolPct so subsequent fades start from the right value.
+func (p *Process) setSinkVolume(id, pct int) error {
+	err := exec.Command("pactl", "set-sink-input-volume",
 		strconv.Itoa(id), strconv.Itoa(pct)+"%").Run()
+	if err == nil {
+		p.sinkMu.Lock()
+		p.currentVolPct = pct
+		p.sinkMu.Unlock()
+	}
+	return err
 }

@@ -85,9 +85,6 @@ func (g *gainReader) Read(p []byte) (int, error) {
 // continuously while the radio is powered on; volume is controlled via
 // SetGain (0=silent, 1=full). Call Shuffle to immediately jump to a new
 // random file and position — used when the dial lands in a station sweet spot.
-//
-// The oto audio context is created once on first Start and reused across
-// Stop/Start cycles — oto only permits one context per process.
 type Static struct {
 	cfg    Config
 	otoCtx *oto.Context
@@ -100,9 +97,10 @@ type Static struct {
 	gr         *gainReader // active gain reader, nil when stopped
 }
 
-func NewStatic(cfg Config) *Static {
+func NewStatic(ctx *AudioContext, cfg Config) *Static {
 	return &Static{
 		cfg:       cfg,
+		otoCtx:    ctx.oto,
 		shuffleCh: make(chan struct{}, 1),
 	}
 }
@@ -115,20 +113,6 @@ func (s *Static) Start() {
 
 	if s.playing {
 		return
-	}
-
-	if s.otoCtx == nil {
-		file := s.pickFile()
-		if file == "" {
-			slog.Warn("static audio: no files configured")
-			return
-		}
-		ctx, err := s.initOto(file)
-		if err != nil {
-			slog.Error("static audio: init oto", "err", err)
-			return
-		}
-		s.otoCtx = ctx
 	}
 
 	stopCh := make(chan struct{})
@@ -179,31 +163,6 @@ func (s *Static) Shuffle() {
 	case s.shuffleCh <- struct{}{}:
 	default:
 	}
-}
-
-// initOto opens file to read the sample rate, then creates the oto context.
-func (s *Static) initOto(file string) (*oto.Context, error) {
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	dec, err := mp3.NewDecoder(f)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
-		SampleRate:   dec.SampleRate(),
-		ChannelCount: 2,
-		Format:       oto.FormatSignedInt16LE,
-	})
-	if err != nil {
-		return nil, err
-	}
-	<-ready
-	return ctx, nil
 }
 
 // pickFile returns a random file from cfg.Files, or "" if the list is empty.

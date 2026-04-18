@@ -84,12 +84,20 @@ func main() {
 	// power events. Stop on shutdown as a safety net.
 	defer librespotProc.Stop()
 
-	staticAudio := audio.NewStatic(audio.Config{
+	audioCtx, err := audio.NewAudioContext(cfg.StaticAudioFiles)
+	if err != nil {
+		slog.Error("failed to initialize audio context", "err", err)
+		os.Exit(1)
+	}
+
+	staticAudio := audio.NewStatic(audioCtx, audio.Config{
 		Files: cfg.StaticAudioFiles,
 	})
-	// staticAudio.Start() / Stop() are called by station-switch logic (Phase 9).
+	// staticAudio.Start() / Stop() are called by station-switch logic.
 	// Ensure it is stopped on shutdown.
 	defer staticAudio.Stop()
+
+	interstitials := audio.NewInterstitialPlayer(audioCtx, cfg.InterstitialDir)
 
 	bus := events.New()
 	go forwardLibrespotEvents(librespotProc, bus)
@@ -103,7 +111,7 @@ func main() {
 
 	// Create the server (and subscribe to the bus) before starting hardware
 	// watchers so the station controller catches the initial power-on event.
-	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio, amp, librespotProc)
+	srv, err := server.New(cfg, spotifyClient, db, bus, staticAudio, amp, librespotProc, interstitials)
 	if err != nil {
 		slog.Error("failed to create server", "err", err)
 		os.Exit(1)

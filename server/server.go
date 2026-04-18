@@ -33,26 +33,30 @@ type LibrespotController interface {
 	FadeOut(ctx context.Context, duration time.Duration)
 	ArmFadeIn()
 	FadeIn(ctx context.Context, duration time.Duration)
+	Duck(ctx context.Context, targetPct int, duration time.Duration)
+	Unduck(ctx context.Context, duration time.Duration)
 }
 
 type Server struct {
-	cfg           *config.Config
-	staticMinGain float64
-	mux           *http.ServeMux
-	httpServer    *http.Server
-	templates     map[string]*template.Template
-	spotify       *spotify.Client
-	store         *store.Store
-	bus           *events.Bus
-	staticAudio   *audio.Static
-	amp           AmpController
-	librespot     LibrespotController
-	state         *radioState
-	broker        *sseBroker
-	imageDir      string
+	cfg                   *config.Config
+	staticMinGain         float64
+	interstitialDuckLevel int
+	mux                   *http.ServeMux
+	httpServer            *http.Server
+	templates             map[string]*template.Template
+	spotify               *spotify.Client
+	store                 *store.Store
+	bus                   *events.Bus
+	staticAudio           *audio.Static
+	interstitials         *audio.InterstitialPlayer
+	amp                   AmpController
+	librespot             LibrespotController
+	state                 *radioState
+	broker                *sseBroker
+	imageDir              string
 }
 
-func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController, librespot LibrespotController) (*Server, error) {
+func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus *events.Bus, staticAudio *audio.Static, amp AmpController, librespot LibrespotController, interstitials *audio.InterstitialPlayer) (*Server, error) {
 	funcMap := template.FuncMap{
 		"showDebug": func() bool { return cfg.ShowDebug },
 	}
@@ -79,19 +83,21 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 	}
 
 	s := &Server{
-		cfg:           cfg,
-		staticMinGain: cfg.DialStaticMinGain,
-		mux:           http.NewServeMux(),
-		templates:     templates,
-		spotify:       spotifyClient,
-		store:         db,
-		bus:           bus,
-		staticAudio:   staticAudio,
-		amp:           amp,
-		librespot:     librespot,
-		state:         newRadioState(),
-		broker:        newSSEBroker(),
-		imageDir:      cfg.ImageCacheDir,
+		cfg:                   cfg,
+		staticMinGain:         cfg.DialStaticMinGain,
+		interstitialDuckLevel: cfg.InterstitialDuckLevel,
+		mux:                   http.NewServeMux(),
+		templates:             templates,
+		spotify:               spotifyClient,
+		store:                 db,
+		bus:                   bus,
+		staticAudio:           staticAudio,
+		interstitials:         interstitials,
+		amp:                   amp,
+		librespot:             librespot,
+		state:                 newRadioState(),
+		broker:                newSSEBroker(),
+		imageDir:              cfg.ImageCacheDir,
 	}
 
 	go s.runStateUpdater()
@@ -115,6 +121,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /debug", s.handleDebug)
 	s.mux.HandleFunc("GET /debug/state", s.handleDebugState)
 	s.mux.HandleFunc("POST /debug/simulate", s.handleDebugSimulate)
+	s.mux.HandleFunc("POST /debug/interstitial", s.handleDebugInterstitial)
 	s.mux.HandleFunc("GET /events", s.handleSSE)
 }
 

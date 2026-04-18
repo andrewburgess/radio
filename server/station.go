@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -24,20 +25,31 @@ func (s *Server) runStationController() {
 	defer s.bus.Unsubscribe(ch)
 
 	var (
-		bucket       int
-		mode         = events.ModeMusic
-		powered      bool
-		assigned     bool               // true when current bucket has a playlist
-		tuneQuality  float64            // latest value from KindTuneQualityChanged
-		prevQuality  float64            // previous value, used to detect sweet-spot entry
-		cancelSwitch context.CancelFunc = func() {}
+		bucket             int
+		mode               = events.ModeMusic
+		powered            bool
+		assigned           bool    // true when current bucket has a playlist
+		tuneQuality        float64 // latest value from KindTuneQualityChanged
+		prevQuality        float64 // previous value, used to detect sweet-spot entry
+		currentPlaylistURI string
+		interstitialSongs  = make(map[string]int) // songs since last interstitial, per playlist URI
+
+		cancelSwitch       context.CancelFunc = func() {}
+		cancelInterstitial context.CancelFunc = func() {}
 	)
+
+	// cancelAll stops any in-flight station switch and any playing interstitial.
+	cancelAll := func() {
+		cancelSwitch()
+		cancelInterstitial()
+		cancelInterstitial = func() {}
+	}
 
 	// startSwitch cancels any in-flight switchStation goroutine then launches a
 	// new one. This ensures rapid dial movement doesn't stack up concurrent
 	// Spotify API calls that race to be the last writer.
 	startSwitch := func(b int, m string) {
-		cancelSwitch()
+		cancelAll()
 		ctx, cancel := context.WithCancel(context.Background())
 		cancelSwitch = cancel
 		go s.switchStation(ctx, b, m)
@@ -79,13 +91,15 @@ func (s *Server) runStationController() {
 			mode = e.Mode
 			if powered {
 				if mode == events.ModeSpeaker {
-					cancelSwitch()
-					cancelSwitch = func() {}
+					cancelAll()
 					go s.enterSpeakerMode()
 				} else {
 					startSwitch(bucket, string(mode))
 				}
 			}
+
+		case events.KindStationChanged:
+			currentPlaylistURI = e.PlaylistURI
 
 		case events.KindPowerChanged:
 			powered = e.PowerOn
@@ -95,16 +109,14 @@ func (s *Server) runStationController() {
 				}
 				s.staticAudio.Start()
 				if mode == events.ModeSpeaker {
-					cancelSwitch()
-					cancelSwitch = func() {}
+					cancelAll()
 					go s.enterSpeakerMode()
 				} else {
 					startSwitch(bucket, string(mode))
 				}
 			} else {
-				// Cancel any in-flight switch before tearing down playback.
-				cancelSwitch()
-				cancelSwitch = func() {}
+				// Cancel any in-flight switch and interstitial before tearing down.
+				cancelAll()
 				go s.stopPlayback()
 			}
 
@@ -113,6 +125,21 @@ func (s *Server) runStationController() {
 			// episodes are played as single URIs so we must advance manually.
 			if powered && mode == events.ModePodcast {
 				startSwitch(bucket, string(mode))
+			}
+			// Maybe play a DJ interstitial between music tracks.
+			if powered && mode == events.ModeMusic && currentPlaylistURI != "" {
+				if s.interstitials.HasClips(currentPlaylistURI) {
+					songs := interstitialSongs[currentPlaylistURI] + 1
+					interstitialSongs[currentPlaylistURI] = songs
+					chance := float64(songs) * s.cfg.InterstitialChanceIncrement / 100.0
+					if rand.Float64() < chance {
+						interstitialSongs[currentPlaylistURI] = 0
+						cancelAll()
+						ctx, cancel := context.WithCancel(context.Background())
+						cancelInterstitial = cancel
+						go s.playInterstitial(ctx, currentPlaylistURI)
+					}
+				}
 			}
 		}
 	}
@@ -167,6 +194,7 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 		Kind:            events.KindStationChanged,
 		StationName:     stationName,
 		StationImageURL: stationImage,
+		PlaylistURI:     station.PlaylistURI,
 	})
 
 	tracks, err := s.spotify.GetTracksWithCache(ctx, station.PlaylistURI, s.store)
@@ -298,6 +326,36 @@ func (s *Server) staticGain(quality float64) float64 {
 		gain = s.staticMinGain
 	}
 	return gain
+}
+
+// playInterstitial ducks the Spotify stream, plays a randomly selected clip
+// from the interstitial library for playlistURI, then restores volume.
+// If ctx is cancelled mid-clip (e.g. dial turn), the clip stops and volume is
+// left at duck level — the subsequent FadeOut in switchStation will handle it
+// cleanly because FadeOut reads currentVolPct rather than assuming 100%.
+func (s *Server) playInterstitial(ctx context.Context, playlistURI string) {
+	clip, err := s.interstitials.PickClip(playlistURI)
+	if err != nil {
+		slog.Debug("interstitial: pick clip", "err", err)
+		return
+	}
+
+	const duckDuration = 150 * time.Millisecond
+	s.librespot.Duck(ctx, s.interstitialDuckLevel, duckDuration)
+	if ctx.Err() != nil {
+		return
+	}
+
+	slog.Info("interstitial: playing", "playlist", playlistURI)
+	if err := s.interstitials.Play(ctx, clip); err != nil && ctx.Err() == nil {
+		slog.Debug("interstitial: play error", "err", err)
+	}
+	if ctx.Err() != nil {
+		return
+	}
+
+	const unduckDuration = 200 * time.Millisecond
+	s.librespot.Unduck(context.Background(), unduckDuration)
 }
 
 // radioTimeOffset computes (trackIndex, positionMs) for "radio time": the

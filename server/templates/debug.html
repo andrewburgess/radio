@@ -186,6 +186,16 @@
             <input type="number" name="volume" value="80" min="0" max="100" />
             <button type="submit">Set</button>
         </form>
+
+        <form
+            class="sim-group"
+            hx-post="/debug/interstitial"
+            hx-target="#state"
+            hx-swap="innerHTML"
+        >
+            <span class="lbl">Interstitial</span>
+            <button type="submit">Play</button>
+        </form>
     </div>
 </div>
 

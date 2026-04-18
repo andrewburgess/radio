@@ -66,6 +66,7 @@ type Event struct {
 	// KindStationChanged
 	StationName     string
 	StationImageURL string
+	PlaylistURI     string
 }
 
 // Bus is a simple fan-out pub/sub backed by Go channels.

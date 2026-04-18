@@ -6,7 +6,7 @@ package audio
 // available. All methods are safe to call and do nothing.
 type Static struct{}
 
-func NewStatic(_ Config) *Static { return &Static{} }
+func NewStatic(_ *AudioContext, _ Config) *Static { return &Static{} }
 
 func (s *Static) Start()            {}
 func (s *Static) Stop()             {}

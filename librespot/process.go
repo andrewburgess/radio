@@ -90,9 +90,10 @@ type Process struct {
 	stopCh    chan struct{}
 	running   bool
 
-	sinkMu      sync.Mutex
-	sinkInputID int           // cached PipeWire sink-input index; -1 when unknown
-	armedCh     chan struct{} // channel captured by ArmFadeIn, waited on by FadeIn
+	sinkMu        sync.Mutex
+	sinkInputID   int           // cached PipeWire sink-input index; -1 when unknown
+	currentVolPct int           // last volume set via pactl (0-100); used as FadeOut start
+	armedCh       chan struct{} // channel captured by ArmFadeIn, waited on by FadeIn
 
 	playingMu sync.Mutex
 	playingCh chan struct{} // closed each time EventPlaying fires, then replaced
@@ -101,11 +102,12 @@ type Process struct {
 // New creates a Process. Call Start to launch librespot.
 func New(cfg Config) *Process {
 	return &Process{
-		cfg:         cfg,
-		Events:      make(chan Event, 16),
-		stopCh:      make(chan struct{}),
-		sinkInputID: -1,
-		playingCh:   make(chan struct{}),
+		cfg:           cfg,
+		Events:        make(chan Event, 16),
+		stopCh:        make(chan struct{}),
+		sinkInputID:   -1,
+		currentVolPct: 100,
+		playingCh:     make(chan struct{}),
 	}
 }
 
@@ -207,6 +209,7 @@ func (p *Process) Stop() {
 	}
 	p.sinkMu.Lock()
 	p.sinkInputID = -1
+	p.currentVolPct = 100
 	p.sinkMu.Unlock()
 	p.playingMu.Lock()
 	p.playingCh = make(chan struct{})
