@@ -47,7 +47,7 @@ func TestSpotifyID(t *testing.T) {
 			want:  "0zLhl3WsOCQHbe1BPTiHgr",
 		},
 
-		// Bare IDs — passed through unchanged
+		// Bare IDs - passed through unchanged
 		{
 			name:  "bare ID",
 			input: "4CcJtLqObbg4L5YEXaNrlY",

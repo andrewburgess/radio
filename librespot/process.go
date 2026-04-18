@@ -59,7 +59,7 @@ type Event struct {
 	// Playing, Paused, Seeked
 	PositionMs int
 
-	// VolumeChanged (0–65535)
+	// VolumeChanged (0-65535)
 	Volume int
 
 	// SessionConnected, SessionDisconnected
@@ -141,7 +141,7 @@ func (p *Process) pidFilePath() string {
 }
 
 // killLeftover reads the pidfile from a previous run and kills that process if
-// it is still running. Errors are logged but not returned — a stale or missing
+// it is still running. Errors are logged but not returned - a stale or missing
 // pidfile is not fatal.
 func (p *Process) killLeftover() {
 	path := p.pidFilePath()

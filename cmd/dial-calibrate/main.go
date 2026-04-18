@@ -3,11 +3,11 @@
 // dial-calibrate sweeps the TMAG5273 Hall effect sensor and records raw
 // X/Y/Z samples to a CSV file as you rotate the dial from stop to stop.
 // Press Enter at each position you want to mark (e.g. bucket boundaries).
-// Press Ctrl+C when the sweep is complete — the tool will print calibration
+// Press Ctrl+C when the sweep is complete - the tool will print calibration
 // constants (center offset, arc min/max, suggested bucket counts) derived
 // from the locus of measured XY values.
 //
-// The tool configures 32× hardware oversampling on the chip to reduce
+// The tool configures 32x hardware oversampling on the chip to reduce
 // per-sample noise before any data is recorded.
 //
 // Usage:
@@ -44,7 +44,7 @@ const (
 
 // Configuration values.
 const (
-	// DEVICE_CONFIG_1: CONV_AVG = 32× (bits [6:4] = 0x5 → 0x50).
+	// DEVICE_CONFIG_1: CONV_AVG = 32x (bits [6:4] = 0x5 -> 0x50).
 	// Hardware-averages 32 conversions before reporting, dramatically
 	// reducing per-sample noise with no software windowing required.
 	cfgAvg32x = 0x50
@@ -142,7 +142,7 @@ loop:
 			markSeq++
 			pendingMark = markSeq
 			// Print on a new line so the mark notice isn't overwritten by \r.
-			fmt.Printf("\n  [mark %d — move to next position, then press Enter again]\n",
+			fmt.Printf("\n  [mark %d - move to next position, then press Enter again]\n",
 				markSeq)
 
 		case <-ticker.C:
@@ -196,7 +196,7 @@ func configureSensor(dev *i2c.Dev) error {
 		reg, val byte
 		name     string
 	}{
-		{regDeviceConfig1, cfgAvg32x, "32× hardware averaging"},
+		{regDeviceConfig1, cfgAvg32x, "32x hardware averaging"},
 		{regSensorConfig1, cfgChannelsXYZ, "XYZ channels"},
 		{regSensorConfig2, cfgAngleAndRange, "XY angle + 80mT range"},
 		{regDeviceConfig2, cfgContinuous, "continuous mode"},
@@ -247,7 +247,7 @@ func analyze(samples []sample) {
 	fmt.Printf("Y range:   [%d, %d]  (span %d)\n", minY, maxY, maxY-minY)
 	fmt.Printf("Estimated magnetic center:  cx=%.1f  cy=%.1f\n\n", cx, cy)
 
-	// Compute raw centered angles (0–360°).
+	// Compute raw centered angles (0-360°).
 	raw := make([]float64, len(samples))
 	for i, s := range samples {
 		a := math.Atan2(float64(s.x)-cx, float64(s.y)-cy) * 180 / math.Pi
@@ -285,7 +285,7 @@ func analyze(samples []sample) {
 	span := hi - lo
 
 	duration := time.Duration(samples[len(samples)-1].ts-samples[0].ts) * time.Millisecond
-	fmt.Printf("Sweep arc:  %.1f° → %.1f°  (span %.1f°)\n", lo, hi, span)
+	fmt.Printf("Sweep arc:  %.1f° -> %.1f°  (span %.1f°)\n", lo, hi, span)
 	fmt.Printf("Samples:    %d over %s\n\n", len(samples), duration.Round(time.Second))
 
 	fmt.Println("Bucket options:")
@@ -295,7 +295,7 @@ func analyze(samples []sample) {
 		fmt.Printf("  %5d   %8.1f°\n", n, span/float64(n))
 	}
 
-	fmt.Println("\nCalibration constants — add these to your .env:")
+	fmt.Println("\nCalibration constants - add these to your .env:")
 	fmt.Printf("  DIAL_CENTER_X=%.0f\n", cx)
 	fmt.Printf("  DIAL_CENTER_Y=%.0f\n", cy)
 	fmt.Printf("  DIAL_MIN_ANGLE=%.1f\n", lo)

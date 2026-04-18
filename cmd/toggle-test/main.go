@@ -12,10 +12,10 @@
 //
 // Wiring:
 //
-//	Row 1 → GND
-//	Row 2 → pinA (pull-up)
-//	Row 3 → pinB (pull-up)
-//	Row 4 → GND
+//	Row 1 -> GND
+//	Row 2 -> pinA (pull-up)
+//	Row 3 -> pinB (pull-up)
+//	Row 4 -> GND
 package main
 
 import (

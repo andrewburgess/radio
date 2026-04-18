@@ -45,8 +45,8 @@ type Config struct {
 	DialMaxAngle        float64
 	DialTuneForgiveness float64
 	DialStaticMinGain   float64
-	ToggleGPIOPinA      string // Row 2 → AM/music
-	ToggleGPIOPinB      string // Row 3 → AFC/speaker or FM/podcast
+	ToggleGPIOPinA      string // Row 2 -> AM/music
+	ToggleGPIOPinB      string // Row 3 -> AFC/speaker or FM/podcast
 	PowerGPIOPin        string
 	VolumeSPIDev        string
 	VolumeSPIChannel    int
@@ -125,7 +125,7 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("config: SPOTIFY_REDIRECT_URI is required")
 	}
 
-	// Static audio — comma-separated list of MP3 file paths.
+	// Static audio - comma-separated list of MP3 file paths.
 	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
 
 	cfg.InterstitialDir = getEnv("INTERSTITIAL_DIR", "interstitials")

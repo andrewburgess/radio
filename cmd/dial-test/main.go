@@ -28,7 +28,7 @@ const (
 	regSensorConfig1 = 0x02 // bits [7:4]: channel enable, bits [3:0]: sleep time
 	regSensorConfig2 = 0x03 // bits [3:2]: angle enable, bit [1]: XY range, bit [0]: Z range
 	regManufacturerL = 0x0E // should read 0x49
-	regManufacturerM = 0x0F // should read 0x54 → together "TI"
+	regManufacturerM = 0x0F // should read 0x54 -> together "TI"
 	regDeviceID      = 0x0D
 	regXMSB          = 0x12
 	regYMSB          = 0x14
@@ -80,7 +80,7 @@ func main() {
 	fmt.Printf("Manufacturer ID: 0x%02X 0x%02X (expect 0x49 0x54 = \"TI\")\n", mfgL[0], mfgM[0])
 	fmt.Printf("Device ID:       0x%02X     (expect 0x01 or 0x02)\n", devID[0])
 	if mfgL[0] != 0x49 || mfgM[0] != 0x54 {
-		fmt.Fprintln(os.Stderr, "WARNING: unexpected manufacturer ID — wrong address or wiring issue?")
+		fmt.Fprintln(os.Stderr, "WARNING: unexpected manufacturer ID - wrong address or wiring issue?")
 	}
 
 	// Enable X+Y+Z channels (bits [7:4] of SENSOR_CONFIG_1).
@@ -116,7 +116,7 @@ func main() {
 	fmt.Printf("%-8s  %-8s  %-8s  %-12s  %-10s\n", "X", "Y", "Z", "atan2(X,Y)°", "onboard°")
 	fmt.Println("--------  --------  --------  ------------  ----------")
 
-	fmt.Println("Reading TMAG5273 — spin the dial and watch the values.")
+	fmt.Println("Reading TMAG5273 - spin the dial and watch the values.")
 
 	const windowSize = 5
 	type sample struct {
@@ -183,7 +183,7 @@ func readInt16(dev *i2c.Dev, reg byte) (int16, error) {
 	return int16(binary.BigEndian.Uint16(buf)), nil
 }
 
-// readOnboardAngle reads the TMAG5273's hardware-computed angle (0–360°).
+// readOnboardAngle reads the TMAG5273's hardware-computed angle (0-360°).
 // The result is a 12-bit value: MSB holds bits [11:4], LSB holds bits [3:0]
 // in the upper nibble.
 func readOnboardAngle(dev *i2c.Dev) (float64, error) {

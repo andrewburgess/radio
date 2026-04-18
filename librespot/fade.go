@@ -173,9 +173,9 @@ func (p *Process) invalidateSinkID() {
 	p.sinkMu.Unlock()
 }
 
-// fadeSink steps volume from `from` to `to` (both 0–100) in fadeSteps
+// fadeSink steps volume from `from` to `to` (both 0-100) in fadeSteps
 // increments. Starts at step 1, not 0, so the first pactl call never resets
-// the volume to `from` — this avoids an audible bump if a prior fade left the
+// the volume to `from` - this avoids an audible bump if a prior fade left the
 // volume at a different level. Returns an error if a pactl call fails (stale
 // sink ID); the caller should invalidate the cache in that case.
 func (p *Process) fadeSink(ctx context.Context, id, from, to int, duration time.Duration) error {

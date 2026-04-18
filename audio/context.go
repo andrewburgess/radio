@@ -11,7 +11,7 @@ import (
 )
 
 // AudioContext wraps the shared oto audio context. Create exactly one per
-// process and pass it to all audio players — oto only permits one context
+// process and pass it to all audio players - oto only permits one context
 // per audio device.
 type AudioContext struct {
 	oto *oto.Context

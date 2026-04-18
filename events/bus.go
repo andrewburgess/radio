@@ -11,14 +11,14 @@ type Kind int
 const (
 	KindTrackChanged         Kind = iota
 	KindPlaybackStateChanged      // playing or paused (not stopped/transferred)
-	KindPlaybackStopped           // librespot stopped — session transferred to another device
+	KindPlaybackStopped           // librespot stopped - session transferred to another device
 	KindDialMoved                 // dial settled on a new bucket
 	KindTuneQualityChanged        // continuous dial position within the current bucket (0=boundary, 1=centre)
 	KindToggleSwitched            // AM/FM toggle changed mode
 	KindStaticStarted             // static audio began playing
 	KindStaticStopped             // static audio stopped
 	KindPowerChanged              // radio turned on or off via volume knob switch
-	KindVolumeChanged             // volume pot position changed (0–100)
+	KindVolumeChanged             // volume pot position changed (0-100)
 	KindStationChanged            // tuned to a new station (name/image resolved)
 	KindTrackEnded                // librespot reported end_of_track
 	KindSessionConnected          // Spotify Connect session established
@@ -63,7 +63,7 @@ type Event struct {
 	// KindPowerChanged
 	PowerOn bool
 
-	// KindVolumeChanged (0–100)
+	// KindVolumeChanged (0-100)
 	Volume int
 
 	// KindStationChanged

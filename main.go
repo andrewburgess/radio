@@ -69,7 +69,7 @@ func main() {
 		os.Exit(1)
 	}
 	if !auth.HasToken() {
-		slog.Warn("Spotify not authorized — visit /auth in a browser to complete setup")
+		slog.Warn("Spotify not authorized - visit /auth in a browser to complete setup")
 	}
 	spotifyClient := spotify.NewClient(auth)
 

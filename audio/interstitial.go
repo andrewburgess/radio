@@ -21,7 +21,7 @@ import (
 //	<dir>/<playlist-uri-slug>/*.mp3
 //
 // where the slug is the last colon-separated segment of the playlist URI
-// (e.g. "spotify:playlist:ABC123" → "ABC123").
+// (e.g. "spotify:playlist:ABC123" -> "ABC123").
 type InterstitialPlayer struct {
 	audioCtx *AudioContext
 	dir      string

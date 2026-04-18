@@ -21,12 +21,12 @@ const (
 	sseEventDial     = "dial"     // dial settled on a new bucket
 	sseEventMode     = "mode"     // AM/FM toggle changed
 	sseEventPower    = "power"    // power on/off
-	sseEventVolume   = "volume"   // volume level 0–100
+	sseEventVolume   = "volume"   // volume level 0-100
 	sseEventStation  = "station"  // station name/image resolved
-	sseEventQuality  = "quality"  // tune quality 0–100
+	sseEventQuality  = "quality"  // tune quality 0-100
 )
 
-// SSE payload types — one per event name.
+// SSE payload types - one per event name.
 
 type sseTrackPayload struct {
 	URI        string `json:"uri"`
@@ -70,7 +70,7 @@ type sseStationPayload struct {
 }
 
 type sseQualityPayload struct {
-	Quality int `json:"quality"` // 0–100
+	Quality int `json:"quality"` // 0-100
 }
 
 // sseClient is one connected browser client.
@@ -165,7 +165,7 @@ func (s *Server) handleSSE(w http.ResponseWriter, r *http.Request) {
 }
 
 // publishSnapshot sends the current radioState to a single client as a series
-// of individual SSE events — one per event type — so the client renders
+// of individual SSE events - one per event type - so the client renders
 // immediately without waiting for the next real event.
 func (s *Server) publishSnapshot(c *sseClient) {
 	snap := s.state.snapshot(s.cfg.BucketCount)
@@ -207,8 +207,8 @@ func (s *Server) publishClearTrack() {
 	s.broker.publish(sseEventTrack, sseTrackPayload{})
 	s.broker.publish(sseEventStation, sseStationPayload{})
 	s.broker.publish(sseEventPlayback, ssePlaybackPayload{Playing: false})
-	// Deliberately no sseEventStatic here — let KindStaticStarted/Stopped own
-	// that state. Forcing static:false here causes a flash on empty→empty
+	// Deliberately no sseEventStatic here - let KindStaticStarted/Stopped own
+	// that state. Forcing static:false here causes a flash on empty->empty
 	// bucket transitions: the NO SIGNAL screen briefly disappears then returns.
 }
 
@@ -261,7 +261,7 @@ func (s *Server) runSSEPublisher() {
 				Label:  stationLabel(e.Bucket, s.cfg.BucketCount, string(mode)),
 			})
 		case events.KindToggleSwitched:
-			// Speaker (AFC) mode hands off to Spotify Connect passively — whatever
+			// Speaker (AFC) mode hands off to Spotify Connect passively - whatever
 			// is playing continues, so don't clear now-playing info. For music/podcast
 			// a new station is about to load, so clear immediately.
 			if e.Mode != events.ModeSpeaker {

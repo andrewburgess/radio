@@ -139,7 +139,7 @@ func (rs *radioState) update(e events.Event) {
 		rs.trackURI = e.TrackURI
 		rs.album = e.Album
 		rs.artworkURL = ""
-		desc = fmt.Sprintf("track_changed: %q — %s", e.TrackName, e.Artists)
+		desc = fmt.Sprintf("track_changed: %q - %s", e.TrackName, e.Artists)
 	case events.KindPlaybackStateChanged:
 		rs.playing = e.Playing
 		if e.Playing {
@@ -186,8 +186,8 @@ func (rs *radioState) clearTrack() {
 	rs.stationImageURL = ""
 	rs.playlistURI = ""
 	rs.playing = false
-	// staticPlaying is intentionally left unchanged — KindStaticStarted/Stopped
-	// owns that field. Clearing it here causes empty→empty bucket transitions to
+	// staticPlaying is intentionally left unchanged - KindStaticStarted/Stopped
+	// owns that field. Clearing it here causes empty->empty bucket transitions to
 	// briefly leave the NO SIGNAL state before it is restored.
 }
 

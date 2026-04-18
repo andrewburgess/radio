@@ -15,7 +15,7 @@ import (
 	mp3 "github.com/hajimehoshi/go-mp3"
 )
 
-// gainReader wraps an io.Reader and applies a smoothly-ramped gain (0–1) to
+// gainReader wraps an io.Reader and applies a smoothly-ramped gain (0-1) to
 // each int16 PCM sample. Gain ramps toward the target at a fixed per-sample
 // rate to avoid audible clicks on sudden changes.
 type gainReader struct {
@@ -25,7 +25,7 @@ type gainReader struct {
 	target  float32
 }
 
-// rampPerSample gives a full 0→1 swing in ~200 ms at 48 kHz.
+// rampPerSample gives a full 0->1 swing in ~200 ms at 48 kHz.
 const rampPerSample = float32(1.0 / 9600.0)
 
 func newGainReader(r io.Reader, initial float32) *gainReader {
@@ -84,7 +84,7 @@ func (g *gainReader) Read(p []byte) (int, error) {
 // Static manages looping MP3 playback for the static noise layer. It runs
 // continuously while the radio is powered on; volume is controlled via
 // SetGain (0=silent, 1=full). Call Shuffle to immediately jump to a new
-// random file and position — used when the dial lands in a station sweet spot.
+// random file and position - used when the dial lands in a station sweet spot.
 type Static struct {
 	cfg    Config
 	otoCtx *oto.Context
@@ -196,7 +196,7 @@ func (s *Static) run(stopCh <-chan struct{}) {
 }
 
 // runFile plays file until stopCh fires (returns false) or a shuffle is
-// requested (returns true — supervisor will restart with a new file).
+// requested (returns true - supervisor will restart with a new file).
 func (s *Static) runFile(file string, stopCh <-chan struct{}) (reshuffled bool) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -243,7 +243,7 @@ func (s *Static) runFile(file string, stopCh <-chan struct{}) (reshuffled bool) 
 			return true
 		case <-ticker.C:
 			if !player.IsPlaying() {
-				// EOF — rewind and loop the same file.
+				// EOF - rewind and loop the same file.
 				if _, err := dec.Seek(0, io.SeekStart); err != nil {
 					slog.Error("static audio: seek on loop", "err", err)
 					return false
@@ -259,7 +259,7 @@ func (s *Static) runFile(file string, stopCh <-chan struct{}) (reshuffled bool) 
 // seekRandom seeks the decoder to a random position within the file so each
 // session starts at a different point.
 func seekRandom(dec *mp3.Decoder) {
-	const bytesPerFrame = 4 // 2 channels × 2 bytes (int16)
+	const bytesPerFrame = 4 // 2 channels x 2 bytes (int16)
 
 	total := dec.Length()
 	if total <= 0 {

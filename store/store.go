@@ -13,10 +13,10 @@ import (
 
 // migrations is the ordered list of SQL statements that bring the database from
 // version 0 to the current version. Each entry is one migration; its index+1
-// is the version number it produces. Never edit an existing entry — append a
+// is the version number it produces. Never edit an existing entry - append a
 // new one instead.
 var migrations = []string{
-	// v1 — initial schema
+	// v1 - initial schema
 	`CREATE TABLE IF NOT EXISTS stations (
 		id           INTEGER PRIMARY KEY,
 		angle_bucket INTEGER NOT NULL,
@@ -38,7 +38,7 @@ var migrations = []string{
 		refresh_token TEXT    NOT NULL,
 		expires_at    INTEGER NOT NULL
 	);`,
-	// v2 — playlist image cache
+	// v2 - playlist image cache
 	`CREATE TABLE IF NOT EXISTS image_cache (
 		playlist_uri TEXT PRIMARY KEY,
 		snapshot_id  TEXT NOT NULL,

@@ -21,16 +21,16 @@ const togglePollInterval = 100 * time.Millisecond
 //
 // Wiring (one column of the shorting-bar switch):
 //
-//	Row 1 → GND
-//	Row 2 → pinA (pull-up)
-//	Row 3 → pinB (pull-up)
-//	Row 4 → GND
+//	Row 1 -> GND
+//	Row 2 -> pinA (pull-up)
+//	Row 3 -> pinB (pull-up)
+//	Row 4 -> GND
 //
-// Position → GPIO state → Mode:
+// Position -> GPIO state -> Mode:
 //
-//	AM  (rows 1+2 bridged): A=LOW,  B=HIGH → ModePodcast
-//	AFC (rows 2+3 bridged): A=HIGH, B=HIGH → ModeSpeaker
-//	FM  (rows 3+4 bridged): A=HIGH, B=LOW  → ModeMusic
+//	AM  (rows 1+2 bridged): A=LOW,  B=HIGH -> ModePodcast
+//	AFC (rows 2+3 bridged): A=HIGH, B=HIGH -> ModeSpeaker
+//	FM  (rows 3+4 bridged): A=HIGH, B=LOW  -> ModeMusic
 type Toggle struct {
 	bus      *events.Bus
 	pinNameA string
@@ -117,9 +117,9 @@ func (t *Toggle) poll(pinA, pinB gpio.PinIn) {
 
 // readToggleMode determines the switch position from pins A and B.
 //
-//	A=LOW            → AM  → ModePodcast
-//	A=HIGH, B=LOW    → FM  → ModeMusic
-//	A=HIGH, B=HIGH   → AFC → ModeSpeaker
+//	A=LOW            -> AM  -> ModePodcast
+//	A=HIGH, B=LOW    -> FM  -> ModeMusic
+//	A=HIGH, B=HIGH   -> AFC -> ModeSpeaker
 func readToggleMode(pinA, pinB gpio.PinIn) events.Mode {
 	if pinA.Read() == gpio.Low {
 		return events.ModePodcast

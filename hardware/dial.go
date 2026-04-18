@@ -29,7 +29,7 @@ const (
 	tmag5273RegYMSB          = 0x14 // Y-axis result MSB
 
 	// Configuration values.
-	tmag5273Avg32x        = 0x50 // DEVICE_CONFIG_1: CONV_AVG = 32× (bits [6:4] = 0x5)
+	tmag5273Avg32x        = 0x50 // DEVICE_CONFIG_1: CONV_AVG = 32x (bits [6:4] = 0x5)
 	tmag5273Continuous    = 0x02 // DEVICE_CONFIG_2: continuous measurement mode
 	tmag5273ChannelsXYZ   = 0x70 // SENSOR_CONFIG_1: enable X+Y+Z (0x7 << 4)
 	tmag5273AngleAndRange = 0x07 // SENSOR_CONFIG_2: XY angle | 80mT XY range | 80mT Z range
@@ -50,7 +50,7 @@ type Dial struct {
 	centerY         float64
 	minAngle        float64
 	maxAngle        float64
-	tuneForgiveness float64 // fraction of bucket width that is the sweet spot (0–1)
+	tuneForgiveness float64 // fraction of bucket width that is the sweet spot (0-1)
 
 	mu          sync.Mutex
 	stopCh      chan struct{}
@@ -92,7 +92,7 @@ func (d *Dial) Start() error {
 		reg, val byte
 		name     string
 	}{
-		{tmag5273RegDeviceConfig1, tmag5273Avg32x, "32× averaging"},
+		{tmag5273RegDeviceConfig1, tmag5273Avg32x, "32x averaging"},
 		{tmag5273RegSensorConfig1, tmag5273ChannelsXYZ, "XYZ channels"},
 		{tmag5273RegSensorConfig2, tmag5273AngleAndRange, "XY angle + 80mT range"},
 		{tmag5273RegDeviceConfig2, tmag5273Continuous, "continuous mode"},
@@ -144,7 +144,7 @@ func (d *Dial) poll(dev *i2c.Dev, busRef interface{ Close() error }) {
 			slog.Debug("dial: poll", "angle", angle, "bucket", bucket, "quality", quality, "candidate", candidate, "stable", stable)
 
 			// Emit quality changes when they cross 0/1 exactly or shift by more
-			// than a small threshold — avoids flooding the bus while stationary.
+			// than a small threshold - avoids flooding the bus while stationary.
 			const qualityThreshold = 0.02
 			if quality != d.lastQuality &&
 				(math.Abs(quality-d.lastQuality) >= qualityThreshold ||

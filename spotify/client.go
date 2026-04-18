@@ -182,7 +182,7 @@ func (c *Client) GetCurrentTrack(ctx context.Context) (*Track, error) {
 	}, nil
 }
 
-// GetPlaylistSnapshot returns the snapshot_id for a playlist — a cheap way to
+// GetPlaylistSnapshot returns the snapshot_id for a playlist - a cheap way to
 // detect whether the playlist has changed without fetching the full track list.
 // playlistURI may be a full Spotify URI, web URL, or bare ID.
 func (c *Client) GetPlaylistSnapshot(ctx context.Context, playlistURI string) (string, error) {
@@ -380,7 +380,7 @@ func (c *Client) GetEpisodeImage(ctx context.Context, episodeURI string) (string
 	return "", nil
 }
 
-// SetVolume sets the playback volume (0–100) on deviceID (or the active device
+// SetVolume sets the playback volume (0-100) on deviceID (or the active device
 // if deviceID is empty).
 func (c *Client) SetVolume(ctx context.Context, deviceID string, percent int) error {
 	path := fmt.Sprintf("/me/player/volume?volume_percent=%d", percent)
@@ -559,9 +559,9 @@ func (c *Client) do(req *http.Request, out any) error {
 // SpotifyID extracts the resource ID from a Spotify URI, a Spotify web URL,
 // or a bare ID. Returns an empty string if the input is unrecognisable.
 //
-//   - URI:     "spotify:playlist:4CcJtLqObbg4L5YEXaNrlY"                              → "4CcJtLqObbg4L5YEXaNrlY"
-//   - URL:     "https://open.spotify.com/playlist/4CcJtLqObbg4L5YEXaNrlY?si=..."      → "4CcJtLqObbg4L5YEXaNrlY"
-//   - Bare ID: "4CcJtLqObbg4L5YEXaNrlY"                                               → "4CcJtLqObbg4L5YEXaNrlY"
+//   - URI:     "spotify:playlist:4CcJtLqObbg4L5YEXaNrlY"                              -> "4CcJtLqObbg4L5YEXaNrlY"
+//   - URL:     "https://open.spotify.com/playlist/4CcJtLqObbg4L5YEXaNrlY?si=..."      -> "4CcJtLqObbg4L5YEXaNrlY"
+//   - Bare ID: "4CcJtLqObbg4L5YEXaNrlY"                                               -> "4CcJtLqObbg4L5YEXaNrlY"
 func SpotifyID(input string) string {
 	// https://open.spotify.com/{type}/{id}?si=...
 	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {

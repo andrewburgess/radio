@@ -1,5 +1,5 @@
 // playlistinfo is a small diagnostic tool for inspecting a Spotify playlist.
-// It prints the snapshot_id, total duration, and track list — useful for
+// It prints the snapshot_id, total duration, and track list - useful for
 // checking whether prompted playlists behave like regular playlists in the API.
 //
 // Usage:
@@ -53,7 +53,7 @@ func main() {
 		os.Exit(1)
 	}
 	if !auth.HasToken() {
-		fmt.Fprintln(os.Stderr, "not authenticated — run the radio server and visit /auth first")
+		fmt.Fprintln(os.Stderr, "not authenticated - run the radio server and visit /auth first")
 		os.Exit(1)
 	}
 
@@ -92,7 +92,7 @@ func main() {
 	fmt.Printf("Total duration: %s\n\n", formatDuration(totalMs))
 
 	for i, t := range tracks {
-		fmt.Printf("[%3d] %s — %s (%s)\n",
+		fmt.Printf("[%3d] %s - %s (%s)\n",
 			i,
 			t.Name,
 			strings.Join(t.Artists, ", "),

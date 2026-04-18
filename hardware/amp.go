@@ -12,7 +12,7 @@ import (
 
 // Amp controls the amplifier's SD (shutdown) pin.
 // Drive HIGH to enable the amp; LOW to mute/shutdown and eliminate idle hiss.
-// TODO: verify polarity — some amps are active-low shutdown (HIGH=on, LOW=off),
+// TODO: verify polarity - some amps are active-low shutdown (HIGH=on, LOW=off),
 // others are active-high shutdown (HIGH=off, LOW=on).
 type Amp struct {
 	pinName string
@@ -33,7 +33,7 @@ func (a *Amp) Start() error {
 		return fmt.Errorf("amp: GPIO pin %q not found", a.pinName)
 	}
 
-	// Start muted — unmute when audio begins.
+	// Start muted - unmute when audio begins.
 	if err := pin.Out(gpio.Low); err != nil {
 		return fmt.Errorf("amp: set pin output: %w", err)
 	}

@@ -114,7 +114,7 @@ func (s *Server) handleAPIPlaylists(w http.ResponseWriter, r *http.Request) {
 }
 
 // stationLabel returns a human-readable frequency label for a bucket.
-// Music buckets map to FM (87.5–108.0 MHz); podcast buckets map to AM (530–1700 kHz).
+// Music buckets map to FM (87.5-108.0 MHz); podcast buckets map to AM (530-1700 kHz).
 func stationLabel(bucket, total int, mode string) string {
 	if mode == "speaker" {
 		return "AFC"
@@ -126,15 +126,15 @@ func stationLabel(bucket, total int, mode string) string {
 		return "550 AM"
 	}
 	if mode == "music" {
-		// North American FM: 87.9–107.9 MHz in 200 kHz steps (all odd tenths).
+		// North American FM: 87.9-107.9 MHz in 200 kHz steps (all odd tenths).
 		// Interpolate bucket position over the 100 channel steps, then snap.
 		const fmFirst = 87.9
-		const fmSteps = 100 // 87.9 + 100×0.2 = 107.9
+		const fmSteps = 100 // 87.9 + 100x0.2 = 107.9
 		channelIdx := int(math.Round(float64(bucket) * float64(fmSteps) / float64(total-1)))
 		freq := fmFirst + float64(channelIdx)*0.2
 		return fmt.Sprintf("%.1f FM", freq)
 	}
-	// AM: 550–1600 kHz, rounded to nearest 10 kHz (standard channel spacing)
+	// AM: 550-1600 kHz, rounded to nearest 10 kHz (standard channel spacing)
 	const amMin, amMax = 550, 1600
 	freq := amMin + float64(bucket)*float64(amMax-amMin)/float64(total-1)
 	rounded := int(math.Round(freq/10)) * 10

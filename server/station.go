@@ -14,10 +14,10 @@ import (
 )
 
 // runStationController subscribes to the event bus and drives playback:
-//   - power on    → switch to current station
-//   - power off   → stop everything
-//   - dial moved  → switch station (if powered on)
-//   - mode toggle → switch station (if powered on)
+//   - power on    -> switch to current station
+//   - power off   -> stop everything
+//   - dial moved  -> switch station (if powered on)
+//   - mode toggle -> switch station (if powered on)
 //
 // It maintains its own local copy of bucket/mode/powered so there is no race
 // with runStateUpdater reading from the same bus subscription.
@@ -120,7 +120,7 @@ func (s *Server) runStationController() {
 
 		case events.KindTrackChanged:
 			// Stop any pending timer and clear any pending schedule. Do NOT cancel a
-			// running interstitial — let it play through the track boundary naturally.
+			// running interstitial - let it play through the track boundary naturally.
 			if interstitialTimer != nil {
 				interstitialTimer.Stop()
 				interstitialTimer = nil
@@ -172,7 +172,7 @@ func (s *Server) runStationController() {
 			}
 
 		case events.KindPlaybackStopped:
-			// librespot stopped — the session was transferred to another device.
+			// librespot stopped - the session was transferred to another device.
 			// Cancel timers and suspend output, but keep librespot running so the
 			// device stays visible in Spotify Connect for reconnection.
 			if powered && mode != events.ModeSpeaker {
@@ -247,7 +247,7 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 	}
 
 	if station == nil || station.PlaylistURI == "" {
-		slog.Info("station: no assignment — playing static", "bucket", bucket, "mode", mode)
+		slog.Info("station: no assignment - playing static", "bucket", bucket, "mode", mode)
 		if err := s.spotify.Pause(ctx, ""); err != nil {
 			slog.Debug("station: pause before static", "err", err)
 		}
@@ -287,7 +287,7 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 		return
 	}
 	if len(tracks) == 0 {
-		slog.Info("station: empty playlist — playing static", "uri", station.PlaylistURI)
+		slog.Info("station: empty playlist - playing static", "uri", station.PlaylistURI)
 		s.staticAudio.SetGain(1.0)
 		s.staticAudio.Shuffle()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
@@ -304,7 +304,7 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 			return
 		}
 		slog.Error("station: find device", "err", err)
-		// fall through with empty ID — Spotify targets the last active device
+		// fall through with empty ID - Spotify targets the last active device
 	}
 	if ctx.Err() != nil {
 		return
@@ -384,7 +384,7 @@ func (s *Server) findDevice(ctx context.Context) (string, error) {
 // Whatever is currently playing continues; the dial is ignored until the toggle
 // leaves AFC position.
 func (s *Server) enterSpeakerMode() {
-	slog.Info("station: speaker mode — tuning suspended, playback unchanged")
+	slog.Info("station: speaker mode - tuning suspended, playback unchanged")
 }
 
 // suspendPlayback stops local audio output and mutes the amp without touching
@@ -408,7 +408,7 @@ func (s *Server) stopPlayback() {
 	s.librespot.Stop()
 }
 
-// staticGain converts a tune quality value (0–1) into a static audio gain.
+// staticGain converts a tune quality value (0-1) into a static audio gain.
 // At quality=1 (sweet spot) the gain is 0 (silent). Below 1 the gain is
 // floored to staticMinGain so static is immediately audible as soon as the
 // dial leaves the sweet spot, then ramps to 1.0 at the bucket boundary.
@@ -426,7 +426,7 @@ func (s *Server) staticGain(quality float64) float64 {
 // playInterstitial ducks the Spotify stream, plays a randomly selected clip
 // from the interstitial library for playlistURI, then restores volume.
 // If ctx is cancelled mid-clip (e.g. dial turn), the clip stops and volume is
-// left at duck level — the subsequent FadeOut in switchStation will handle it
+// left at duck level - the subsequent FadeOut in switchStation will handle it
 // cleanly because FadeOut reads currentVolPct rather than assuming 100%.
 func (s *Server) playInterstitial(ctx context.Context, playlistURI string) {
 	clip, err := s.interstitials.PickClip(playlistURI)

@@ -41,7 +41,7 @@ func main() {
 	if len(os.Args) > 2 {
 		n, err := strconv.Atoi(os.Args[2])
 		if err != nil || n < 0 || n > 7 {
-			fmt.Fprintf(os.Stderr, "channel must be 0–7, got %q\n", os.Args[2])
+			fmt.Fprintf(os.Stderr, "channel must be 0-7, got %q\n", os.Args[2])
 			os.Exit(1)
 		}
 		channel = n
@@ -61,7 +61,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("Reading MCP3008 on %s channel %d — turn the pot and watch the values.\n\n", spiDev, channel)
+	fmt.Printf("Reading MCP3008 on %s channel %d - turn the pot and watch the values.\n\n", spiDev, channel)
 	fmt.Printf("%-10s  %-6s\n", "raw (0-1023)", "pct %")
 	fmt.Println("----------  ------")
 
@@ -98,7 +98,7 @@ func main() {
 }
 
 // readADC performs a standard 3-byte MCP3008 SPI transaction for single-ended
-// mode and returns the 10-bit result (0–1023).
+// mode and returns the 10-bit result (0-1023).
 func readADC(conn spi.Conn, channel int) (int, error) {
 	ch := byte(channel & 0x07)
 	tx := []byte{0x01, (0x80 | ch<<4), 0x00}

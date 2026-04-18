@@ -48,7 +48,7 @@ func main() {
 		fatalf("spotify auth: %v", err)
 	}
 	if !auth.HasToken() {
-		fatalf("Spotify not authorized — start the radio server and visit /auth first")
+		fatalf("Spotify not authorized - start the radio server and visit /auth first")
 	}
 	elevenKey := os.Getenv("ELEVENLABS_API_KEY")
 	if elevenKey == "" {
@@ -75,7 +75,7 @@ func runStationMenu(cfg *config.Config, db *store.Store, el *elevenLabs) {
 		stations := loadStations(db, cfg.InterstitialDir)
 
 		fmt.Println()
-		fmt.Println("=== Zenith Radio — Interstitial Generator ===")
+		fmt.Println("=== Zenith Radio - Interstitial Generator ===")
 		fmt.Println()
 
 		if len(stations) == 0 {
@@ -130,10 +130,10 @@ func runClipMenu(station stationEntry, interstitialDir string, el *elevenLabs) {
 		fmt.Println()
 		if station.TrackCount > 0 {
 			dur := time.Duration(station.TotalDurationMs) * time.Millisecond
-			fmt.Printf("=== %s [bucket %d] — %d tracks (%s) — %d clip(s) ===\n",
+			fmt.Printf("=== %s [bucket %d] - %d tracks (%s) - %d clip(s) ===\n",
 				name, station.Bucket, station.TrackCount, formatDuration(dur), len(clips))
 		} else {
-			fmt.Printf("=== %s [bucket %d] — %d clip(s) ===\n", name, station.Bucket, len(clips))
+			fmt.Printf("=== %s [bucket %d] - %d clip(s) ===\n", name, station.Bucket, len(clips))
 		}
 		fmt.Println()
 
@@ -301,7 +301,7 @@ func pickVoice(el *elevenLabs) (string, bool) {
 		fmt.Printf("found %d\n", len(voices))
 
 		if len(voices) == 0 {
-			fmt.Println("  No voices match — try a different term.")
+			fmt.Println("  No voices match - try a different term.")
 			continue
 		}
 

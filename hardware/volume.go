@@ -25,7 +25,7 @@ const (
 )
 
 // Volume reads the volume potentiometer via the MCP3008 ADC over SPI,
-// maps the value to 0–maxPct%, applies hysteresis to avoid thrashing amixer,
+// maps the value to 0-maxPct%, applies hysteresis to avoid thrashing amixer,
 // and publishes KindVolumeChanged events.
 //
 // minRaw/maxRaw calibrate the physical pot range (the raw ADC values at the
@@ -147,7 +147,7 @@ func (v *Volume) rawToPct(raw int) int {
 }
 
 // readADC reads the configured MCP3008 channel using the standard 3-byte SPI
-// transaction and returns the 10-bit result (0–1023).
+// transaction and returns the 10-bit result (0-1023).
 func (v *Volume) readADC(conn spi.Conn) (int, error) {
 	// MCP3008 single-ended read protocol:
 	//   TX: [start bit=0x01] [SGL=1, D2..D0=channel, padding] [don't care]

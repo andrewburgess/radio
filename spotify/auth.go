@@ -193,7 +193,7 @@ func (a *Auth) AccessToken(ctx context.Context) (string, error) {
 	a.mu.Unlock()
 
 	if t == nil || t.RefreshToken == "" {
-		return "", fmt.Errorf("spotify: not authenticated — visit /auth to authorize")
+		return "", fmt.Errorf("spotify: not authenticated - visit /auth to authorize")
 	}
 	if t.valid() {
 		return t.AccessToken, nil

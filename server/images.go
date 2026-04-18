@@ -15,7 +15,7 @@ import (
 var imageHTTPClient = &http.Client{Timeout: 30 * 1e9} // 30 seconds for CDN downloads
 
 // localImageURL returns the server-local URL for playlistURI if an image is
-// already cached on disk, otherwise "". Makes no network calls — safe to call
+// already cached on disk, otherwise "". Makes no network calls - safe to call
 // on the HTTP response render path.
 func (s *Server) localImageURL(playlistURI string) string {
 	_, fileName, ok, err := s.store.GetImageCache(playlistURI)
@@ -37,7 +37,7 @@ func (s *Server) localImageURL(playlistURI string) string {
 // stale entries and only re-downloads when the snapshot has changed or the file
 // is missing from disk.
 //
-// All network calls use context.Background() — never call this on the HTTP
+// All network calls use context.Background() - never call this on the HTTP
 // response render path; use localImageURL there and call this from a goroutine.
 func (s *Server) cachedPlaylistImage(playlistURI string) string {
 	ctx := context.Background()

@@ -5,8 +5,8 @@ import "strings"
 // SlugForURI extracts the Spotify ID from either URI format and returns it
 // as a filesystem-safe directory name for per-station interstitial clips.
 //
-//	spotify:playlist:ABC123                          → "ABC123"
-//	https://open.spotify.com/playlist/ABC123?si=xyz → "ABC123"
+//	spotify:playlist:ABC123                          -> "ABC123"
+//	https://open.spotify.com/playlist/ABC123?si=xyz -> "ABC123"
 func SlugForURI(uri string) string {
 	if strings.HasPrefix(uri, "http://") || strings.HasPrefix(uri, "https://") {
 		if i := strings.IndexByte(uri, '?'); i >= 0 {
