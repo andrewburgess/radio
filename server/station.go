@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"andrewburgess.io/radio/events"
@@ -25,15 +26,16 @@ func (s *Server) runStationController() {
 	defer s.bus.Unsubscribe(ch)
 
 	var (
-		bucket             int
-		mode               = events.ModeMusic
-		powered            bool
-		assigned           bool    // true when current bucket has a playlist
-		tuneQuality        float64 // latest value from KindTuneQualityChanged
-		prevQuality        float64 // previous value, used to detect sweet-spot entry
-		currentPlaylistURI string
-		interstitialSongs  = make(map[string]int) // songs since last interstitial, per playlist URI
-		interstitialTimer  *time.Timer            // pending pre-end-of-track trigger
+		bucket              int
+		mode                = events.ModeMusic
+		powered             bool
+		assigned            bool    // true when current bucket has a playlist
+		tuneQuality         float64 // latest value from KindTuneQualityChanged
+		prevQuality         float64 // previous value, used to detect sweet-spot entry
+		currentPlaylistURI  string
+		interstitialSongs   = make(map[string]int) // songs since last interstitial, per playlist URI
+		interstitialTimer   *time.Timer            // pending pre-end-of-track trigger
+		interstitialRunning atomic.Bool            // true while a clip is actively playing
 
 		cancelSwitch       context.CancelFunc = func() {}
 		cancelInterstitial context.CancelFunc = func() {}
@@ -105,15 +107,15 @@ func (s *Server) runStationController() {
 			}
 
 		case events.KindTrackChanged:
-			// Cancel any timer/interstitial scheduled for the previous track.
-			cancelInterstitial()
-			cancelInterstitial = func() {}
+			// Stop any pending timer. Do NOT cancel a running interstitial — let it
+			// play through the track boundary naturally.
 			if interstitialTimer != nil {
 				interstitialTimer.Stop()
 				interstitialTimer = nil
 			}
-			// Schedule an interstitial 4 s before this track ends (music mode only).
-			if powered && mode == events.ModeMusic && currentPlaylistURI != "" {
+			// Schedule an interstitial 4 s before this track ends (music mode only,
+			// and only when no clip is already playing).
+			if powered && mode == events.ModeMusic && currentPlaylistURI != "" && !interstitialRunning.Load() {
 				if s.interstitials.HasClips(currentPlaylistURI) {
 					songs := interstitialSongs[currentPlaylistURI] + 1
 					interstitialSongs[currentPlaylistURI] = songs
@@ -128,7 +130,9 @@ func (s *Server) runStationController() {
 						ctx, cancel := context.WithCancel(context.Background())
 						cancelInterstitial = cancel
 						interstitialTimer = time.AfterFunc(delay, func() {
-							go s.playInterstitial(ctx, playlistURI)
+							interstitialRunning.Store(true)
+							defer interstitialRunning.Store(false)
+							s.playInterstitial(ctx, playlistURI)
 						})
 					}
 				}
