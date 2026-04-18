@@ -37,6 +37,12 @@ func (s *Server) runStationController() {
 		interstitialTimer   *time.Timer            // pending pre-end-of-track trigger
 		interstitialRunning atomic.Bool            // true while a clip is actively playing
 
+		// Set after a probability check passes; cleared once the timer is armed or
+		// the track/station changes. The position-aware timer is set on the first
+		// KindPlaybackStateChanged that follows.
+		pendingInterstitialURI string
+		pendingInterstitialMs  int
+
 		cancelSwitch       context.CancelFunc = func() {}
 		cancelInterstitial context.CancelFunc = func() {}
 	)
@@ -51,6 +57,8 @@ func (s *Server) runStationController() {
 			interstitialTimer.Stop()
 			interstitialTimer = nil
 		}
+		pendingInterstitialURI = ""
+		pendingInterstitialMs = 0
 	}
 
 	// startSwitch cancels any in-flight switchStation goroutine then launches a
@@ -107,14 +115,16 @@ func (s *Server) runStationController() {
 			}
 
 		case events.KindTrackChanged:
-			// Stop any pending timer. Do NOT cancel a running interstitial — let it
-			// play through the track boundary naturally.
+			// Stop any pending timer and clear any pending schedule. Do NOT cancel a
+			// running interstitial — let it play through the track boundary naturally.
 			if interstitialTimer != nil {
 				interstitialTimer.Stop()
 				interstitialTimer = nil
 			}
-			// Schedule an interstitial 4 s before this track ends (music mode only,
-			// and only when no clip is already playing).
+			pendingInterstitialURI = ""
+			pendingInterstitialMs = 0
+			// Run the probability check now; arm the actual timer once we learn the
+			// playback position from the next KindPlaybackStateChanged.
 			if powered && mode == events.ModeMusic && currentPlaylistURI != "" && !interstitialRunning.Load() {
 				if s.interstitials.HasClips(currentPlaylistURI) {
 					songs := interstitialSongs[currentPlaylistURI] + 1
@@ -122,20 +132,31 @@ func (s *Server) runStationController() {
 					chance := float64(songs) * s.cfg.InterstitialChanceIncrement / 100.0
 					if rand.Float64() < chance {
 						interstitialSongs[currentPlaylistURI] = 0
-						delay := time.Duration(e.DurationMs-4000) * time.Millisecond
-						if delay < 0 {
-							delay = 0
-						}
-						playlistURI := currentPlaylistURI
-						ctx, cancel := context.WithCancel(context.Background())
-						cancelInterstitial = cancel
-						interstitialTimer = time.AfterFunc(delay, func() {
-							interstitialRunning.Store(true)
-							defer interstitialRunning.Store(false)
-							s.playInterstitial(ctx, playlistURI)
-						})
+						pendingInterstitialURI = currentPlaylistURI
+						pendingInterstitialMs = e.DurationMs
 					}
 				}
+			}
+
+		case events.KindPlaybackStateChanged:
+			// If a probability check passed on the last KindTrackChanged, arm the
+			// interstitial timer now that we know the actual playback position.
+			if pendingInterstitialURI != "" && e.Playing {
+				remaining := pendingInterstitialMs - e.PositionMs
+				delay := time.Duration(remaining-4000) * time.Millisecond
+				if delay < 0 {
+					delay = 0
+				}
+				playlistURI := pendingInterstitialURI
+				pendingInterstitialURI = ""
+				pendingInterstitialMs = 0
+				ctx, cancel := context.WithCancel(context.Background())
+				cancelInterstitial = cancel
+				interstitialTimer = time.AfterFunc(delay, func() {
+					interstitialRunning.Store(true)
+					defer interstitialRunning.Store(false)
+					s.playInterstitial(ctx, playlistURI)
+				})
 			}
 
 		case events.KindStationChanged:
