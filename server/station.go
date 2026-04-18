@@ -173,12 +173,12 @@ func (s *Server) runStationController() {
 
 		case events.KindPlaybackStopped:
 			// librespot stopped — the session was transferred to another device.
-			// Cancel timers and stop our output, but leave powered=true so a
-			// reconnect can resume correctly.
+			// Cancel timers and suspend output, but keep librespot running so the
+			// device stays visible in Spotify Connect for reconnection.
 			if powered && mode != events.ModeSpeaker {
 				sessionLost = true
 				cancelAll()
-				go s.stopPlayback()
+				go s.suspendPlayback()
 			}
 
 		case events.KindSessionConnected:
@@ -190,12 +190,12 @@ func (s *Server) runStationController() {
 			}
 
 		case events.KindSessionDisconnected:
-			// Session ended (logout or device transfer). Mirror power-off behaviour
-			// without changing the physical powered state.
+			// Session ended (logout or device transfer). Suspend output but keep
+			// librespot running so it stays visible in Spotify Connect.
 			if powered && mode != events.ModeSpeaker {
 				sessionLost = true
 				cancelAll()
-				go s.stopPlayback()
+				go s.suspendPlayback()
 			}
 
 		case events.KindPlaybackStateChanged:
@@ -385,6 +385,15 @@ func (s *Server) findDevice(ctx context.Context) (string, error) {
 // leaves AFC position.
 func (s *Server) enterSpeakerMode() {
 	slog.Info("station: speaker mode — tuning suspended, playback unchanged")
+}
+
+// suspendPlayback stops local audio output and mutes the amp without touching
+// Spotify playback, so the session can continue on whatever device has it.
+// librespot keeps running so the radio stays visible in Spotify Connect.
+func (s *Server) suspendPlayback() {
+	s.staticAudio.Stop()
+	s.bus.Publish(events.Event{Kind: events.KindStaticStopped})
+	s.amp.Mute()
 }
 
 // stopPlayback pauses Spotify, stops static audio, mutes the amp, and shuts
