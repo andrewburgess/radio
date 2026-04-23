@@ -18,6 +18,9 @@ import (
 //go:embed templates/*
 var templateFS embed.FS
 
+//go:embed static/*
+var staticFS embed.FS
+
 // AmpController abstracts the amplifier SD pin so the server doesn't depend
 // on the hardware package directly.
 type AmpController interface {
@@ -108,6 +111,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 }
 
 func (s *Server) registerRoutes() {
+	s.mux.Handle("GET /static/", http.FileServerFS(staticFS))
 	s.mux.HandleFunc("GET /", s.handleIndex)
 	s.mux.HandleFunc("GET /auth", s.handleAuthStart)
 	s.mux.HandleFunc("POST /auth/logout", s.handleAuthLogout)

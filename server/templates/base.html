@@ -5,6 +5,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Zenith Radio</title>
+        <link rel="icon" type="image/svg+xml" href="/static/orpheus-favicon.svg" />
         <style>
             *,
             *::before,
@@ -29,11 +30,19 @@
                 gap: 2rem;
                 flex-wrap: wrap;
             }
-            header h1 {
+            header .site-logo {
                 flex: none;
-                font-size: 1.2rem;
-                letter-spacing: 0.1em;
-                color: #c8a84b;
+                height: 6rem;
+                width: auto;
+                display: block;
+            }
+            @media (min-width: 1200px) {
+                header {
+                    flex-wrap: nowrap;
+                }
+                header .site-logo {
+                    height: 10rem;
+                }
             }
             .main-nav {
                 display: flex;
@@ -201,7 +210,7 @@
     </head>
     <body>
         <header>
-            <h1>ZENITH RADIO</h1>
+            <img src="/static/orpheus-logo.svg" alt="Zenith Radio" class="site-logo" />
             <nav class="main-nav">
                 <a href="/">NOW PLAYING</a>
                 <a href="/config/music">MUSIC</a>

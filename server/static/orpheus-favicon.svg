@@ -1,0 +1,29 @@
+<svg width="100%" viewBox="0 0 680 680" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Orpheus radio favicon</title>
+  <desc>Tuning dial favicon — large dial circle with angled double-sided arrow on dark background</desc>
+
+  <rect x="60" y="60" width="560" height="560" rx="80" fill="#1a1a1a"/>
+
+  <circle cx="340" cy="340" r="240" fill="#2a2a2a" stroke="#c8a84b" stroke-width="18"/>
+  <circle cx="340" cy="340" r="155" fill="#1a1a1a" stroke="#444" stroke-width="6"/>
+
+  <g transform="rotate(-35, 340, 340)">
+    <line x1="170" y1="340" x2="510" y2="340" stroke="#c8a84b" stroke-width="14" stroke-linecap="round"/>
+    <path d="M210 305 L170 340 L210 375" fill="none" stroke="#c8a84b" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M470 305 L510 340 L470 375" fill="none" stroke="#c8a84b" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <circle cx="340" cy="340" r="22" fill="#c8a84b"/>
+  <circle cx="340" cy="340" r="10" fill="#1a1a1a"/>
+
+  <g stroke="#c8a84b" stroke-width="8" stroke-linecap="round" opacity="0.5">
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(0,340,340)"/>
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(45,340,340)"/>
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(90,340,340)"/>
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(135,340,340)"/>
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(180,340,340)"/>
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(225,340,340)"/>
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(270,340,340)"/>
+    <line x1="340" y1="102" x2="340" y2="130" transform="rotate(315,340,340)"/>
+  </g>
+</svg>
