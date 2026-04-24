@@ -47,6 +47,11 @@ func (s *Server) runStationController() {
 		// powered on, so that session_connected can trigger a resumption.
 		sessionLost bool
 
+		// expectingStop is set when KindTrackEnded triggers a podcast advance so
+		// that the natural "stopped" event librespot fires after a single-URI
+		// episode ends is not mistaken for a session transfer.
+		expectingStop bool
+
 		cancelSwitch       context.CancelFunc = func() {}
 		cancelInterstitial context.CancelFunc = func() {}
 	)
@@ -168,14 +173,20 @@ func (s *Server) runStationController() {
 			// Music playlists advance automatically via Spotify's context; podcast
 			// episodes are played as single URIs so we must advance manually.
 			if powered && mode == events.ModePodcast {
+				expectingStop = true
 				startSwitch(bucket, string(mode))
 			}
 
 		case events.KindPlaybackStopped:
-			// librespot stopped - the session was transferred to another device.
-			// Cancel timers and suspend output, but keep librespot running so the
-			// device stays visible in Spotify Connect for reconnection.
+			// librespot stopped - either the session was transferred to another
+			// device, or a single-URI podcast episode ended naturally. In the latter
+			// case, expectingStop is set and we let the in-flight switchStation
+			// goroutine continue rather than treating it as a session transfer.
 			if powered && mode != events.ModeSpeaker {
+				if expectingStop {
+					expectingStop = false
+					break
+				}
 				sessionLost = true
 				cancelAll()
 				go s.suspendPlayback()

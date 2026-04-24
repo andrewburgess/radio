@@ -102,7 +102,22 @@ func (p *Process) FadeIn(ctx context.Context, duration time.Duration) {
 	_ = p.setSinkVolume(id, 0)
 	if err := p.fadeSink(ctx, id, 0, 100, duration); err != nil {
 		p.invalidateSinkID()
-		return
+		// Cached sink ID was stale (new episode created a new sink input).
+		// PipeWire's stream-restore may have applied the previous 0% volume to
+		// the new sink, so find it and retry the fade on the correct ID.
+		newID, findErr := waitForSinkInput(ctx, 3*time.Second)
+		if findErr != nil {
+			return
+		}
+		p.sinkMu.Lock()
+		p.sinkInputID = newID
+		p.sinkMu.Unlock()
+		id = newID
+		_ = p.setSinkVolume(id, 0)
+		if err2 := p.fadeSink(ctx, id, 0, 100, duration); err2 != nil {
+			p.invalidateSinkID()
+			return
+		}
 	}
 	// Safety net: guarantee full volume even if a step didn't land exactly at 100.
 	if ctx.Err() == nil {
