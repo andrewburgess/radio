@@ -220,6 +220,37 @@ func (s *Server) saveStationConfig(w http.ResponseWriter, r *http.Request, mode,
 	}
 }
 
+// handleMusicShuffle shuffles the playlist assigned to the given bucket by
+// applying a random permutation via Spotify's reorder API. The playlist cache
+// is automatically invalidated on next playback because the snapshot_id changes.
+func (s *Server) handleMusicShuffle(w http.ResponseWriter, r *http.Request) {
+	bucket, err := strconv.Atoi(r.PathValue("bucket"))
+	if err != nil || bucket < 0 || bucket >= s.cfg.BucketCount {
+		http.Error(w, "invalid bucket", http.StatusBadRequest)
+		return
+	}
+
+	station, err := s.store.GetStation(bucket, "music")
+	if err != nil {
+		slog.Error("shuffle: get station", "bucket", bucket, "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if station == nil || station.PlaylistURI == "" {
+		http.Error(w, "no playlist assigned to this bucket", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.spotify.ShufflePlaylist(r.Context(), station.PlaylistURI); err != nil {
+		slog.Error("shuffle: failed", "bucket", bucket, "uri", station.PlaylistURI, "err", err)
+		http.Error(w, "shuffle failed", http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("shuffle: complete", "bucket", bucket, "uri", station.PlaylistURI)
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // cacheStationLabel fetches the playlist name from Spotify and stores it as the
 // station label so offline tools (e.g. gen-interstitial) can display it.
 func (s *Server) cacheStationLabel(uri, mode string) {

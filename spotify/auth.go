@@ -19,9 +19,9 @@ const (
 	authEndpoint  = "https://accounts.spotify.com/authorize"
 	tokenEndpoint = "https://accounts.spotify.com/api/token"
 
-	// Scopes required for playback control, reading playlists/shows, and
+	// Scopes required for playback control, reading/modifying playlists/shows, and
 	// Spotify Connect device registration via librespot.
-	scopes = "user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative streaming"
+	scopes = "user-read-playback-state user-modify-playback-state playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private streaming"
 )
 
 // Token holds a Spotify OAuth token pair.

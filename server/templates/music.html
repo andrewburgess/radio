@@ -165,7 +165,7 @@
                     value="{{.URI}}"
                     placeholder="spotify:playlist:... or https://open.spotify.com/playlist/..."
                 />
-                <div class="cfg-actions" style="margin-top: 0.25rem">
+                <div class="cfg-actions" style="margin-top: 0.25rem; justify-content: space-between">
                     <button
                         type="button"
                         class="cfg-btn"
@@ -173,6 +173,18 @@
                     >
                         Browse
                     </button>
+                    {{if .URI}}
+                    <button
+                        type="button"
+                        class="cfg-btn"
+                        hx-post="/config/music/{{.Index}}/shuffle"
+                        hx-swap="none"
+                        hx-disabled-elt="this"
+                        hx-on::after-request="shuffleDone(this, event)"
+                    >
+                        Shuffle
+                    </button>
+                    {{end}}
                 </div>
             </div>
         </div>
@@ -189,4 +201,12 @@
         >
     </div>
 </form>
+<script>
+    function shuffleDone(btn, event) {
+        var ok = event.detail.successful;
+        var original = "Shuffle";
+        btn.textContent = ok ? "Shuffled!" : "Error";
+        setTimeout(function () { btn.textContent = original; }, 2000);
+    }
+</script>
 {{end}}

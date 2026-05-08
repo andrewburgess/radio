@@ -121,6 +121,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /config/podcast", s.handlePodcastConfig)
 	s.mux.HandleFunc("POST /config/podcast", s.handlePodcastConfigSave)
 	s.mux.HandleFunc("GET /api/playlists", s.handleAPIPlaylists)
+	s.mux.HandleFunc("POST /config/music/{bucket}/shuffle", s.handleMusicShuffle)
 	s.mux.HandleFunc("GET /images/{filename}", s.handleImages)
 	s.mux.HandleFunc("GET /debug", s.handleDebug)
 	s.mux.HandleFunc("GET /debug/state", s.handleDebugState)
