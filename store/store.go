@@ -44,6 +44,9 @@ var migrations = []string{
 		snapshot_id  TEXT NOT NULL,
 		file_name    TEXT NOT NULL
 	);`,
+	// v3 - per-station shuffle config
+	`ALTER TABLE stations ADD COLUMN shuffle_interval_days INTEGER NOT NULL DEFAULT 0;
+	ALTER TABLE stations ADD COLUMN last_shuffled_at INTEGER;`,
 }
 
 // Store is the SQLite-backed persistence layer. It implements
@@ -54,10 +57,12 @@ type Store struct {
 
 // Station is one row from the stations table.
 type Station struct {
-	Bucket      int
-	Mode        string
-	PlaylistURI string // empty string means unassigned (plays static)
-	Label       string
+	Bucket              int
+	Mode                string
+	PlaylistURI         string // empty string means unassigned (plays static)
+	Label               string
+	ShuffleIntervalDays int
+	LastShuffledAt      *time.Time // nil means never shuffled
 }
 
 // New opens (or creates) the SQLite database at dbPath and runs any pending
@@ -252,15 +257,22 @@ func (s *Store) All() (map[string]spotify.CachedPlaylist, error) {
 // GetStation returns the station for the given bucket and mode, or nil if unassigned.
 func (s *Store) GetStation(bucket int, mode string) (*Station, error) {
 	var st Station
+	var lastShuffledUnix sql.NullInt64
 	err := s.db.QueryRow(`
-		SELECT angle_bucket, mode, COALESCE(playlist_uri, ''), COALESCE(label, '')
+		SELECT angle_bucket, mode, COALESCE(playlist_uri, ''), COALESCE(label, ''),
+		       shuffle_interval_days, last_shuffled_at
 		FROM stations WHERE angle_bucket = ? AND mode = ?
-	`, bucket, mode).Scan(&st.Bucket, &st.Mode, &st.PlaylistURI, &st.Label)
+	`, bucket, mode).Scan(&st.Bucket, &st.Mode, &st.PlaylistURI, &st.Label,
+		&st.ShuffleIntervalDays, &lastShuffledUnix)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("store: get station: %w", err)
+	}
+	if lastShuffledUnix.Valid {
+		t := time.Unix(lastShuffledUnix.Int64, 0)
+		st.LastShuffledAt = &t
 	}
 	return &st, nil
 }
@@ -300,7 +312,8 @@ func (s *Store) DeleteStation(bucket int, mode string) error {
 // ListStations returns all station assignments for a mode, ordered by bucket.
 func (s *Store) ListStations(mode string) ([]Station, error) {
 	rows, err := s.db.Query(`
-		SELECT angle_bucket, mode, COALESCE(playlist_uri, ''), COALESCE(label, '')
+		SELECT angle_bucket, mode, COALESCE(playlist_uri, ''), COALESCE(label, ''),
+		       shuffle_interval_days, last_shuffled_at
 		FROM stations WHERE mode = ? ORDER BY angle_bucket
 	`, mode)
 	if err != nil {
@@ -311,12 +324,43 @@ func (s *Store) ListStations(mode string) ([]Station, error) {
 	var stations []Station
 	for rows.Next() {
 		var st Station
-		if err := rows.Scan(&st.Bucket, &st.Mode, &st.PlaylistURI, &st.Label); err != nil {
+		var lastShuffledUnix sql.NullInt64
+		if err := rows.Scan(&st.Bucket, &st.Mode, &st.PlaylistURI, &st.Label,
+			&st.ShuffleIntervalDays, &lastShuffledUnix); err != nil {
 			return nil, fmt.Errorf("store: scan station: %w", err)
+		}
+		if lastShuffledUnix.Valid {
+			t := time.Unix(lastShuffledUnix.Int64, 0)
+			st.LastShuffledAt = &t
 		}
 		stations = append(stations, st)
 	}
 	return stations, rows.Err()
+}
+
+// SetShuffleInterval sets the automatic shuffle cadence for a bucket. days=0
+// disables automatic shuffling. The station row must already exist.
+func (s *Store) SetShuffleInterval(bucket int, mode string, days int) error {
+	_, err := s.db.Exec(`
+		UPDATE stations SET shuffle_interval_days = ?
+		WHERE angle_bucket = ? AND mode = ?
+	`, days, bucket, mode)
+	if err != nil {
+		return fmt.Errorf("store: set shuffle interval: %w", err)
+	}
+	return nil
+}
+
+// RecordShuffle stamps last_shuffled_at = now for the given station.
+func (s *Store) RecordShuffle(bucket int, mode string) error {
+	_, err := s.db.Exec(`
+		UPDATE stations SET last_shuffled_at = ?
+		WHERE angle_bucket = ? AND mode = ?
+	`, time.Now().Unix(), bucket, mode)
+	if err != nil {
+		return fmt.Errorf("store: record shuffle: %w", err)
+	}
+	return nil
 }
 
 // --- Image cache ---

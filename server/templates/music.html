@@ -90,6 +90,12 @@
         border-color: #c8a84b;
         color: #e0e0e0;
     }
+    .cfg-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        border-color: #222;
+        color: #555;
+    }
     .cfg-btn.primary {
         background: #1a1a1a;
         border-color: #c8a84b;
@@ -180,12 +186,30 @@
                         hx-post="/config/music/{{.Index}}/shuffle"
                         hx-swap="none"
                         hx-disabled-elt="this"
+                        hx-on::before-request="this.textContent = 'Shuffling…'"
                         hx-on::after-request="shuffleDone(this, event)"
                     >
                         Shuffle
                     </button>
                     {{end}}
                 </div>
+                {{if .URI}}
+                <div style="margin-top: 0.75rem">
+                    <div class="cfg-bucket-label">AUTO SHUFFLE</div>
+                    <select name="shuffle_{{.Index}}" class="cfg-bucket-input" style="margin-bottom: 0.25rem; cursor: pointer">
+                        <option value="0"  {{if eq .ShuffleIntervalDays 0 }}selected{{end}}>Disabled</option>
+                        <option value="1"  {{if eq .ShuffleIntervalDays 1 }}selected{{end}}>Daily</option>
+                        <option value="2"  {{if eq .ShuffleIntervalDays 2 }}selected{{end}}>Every other day</option>
+                        <option value="7"  {{if eq .ShuffleIntervalDays 7 }}selected{{end}}>Weekly</option>
+                        <option value="14" {{if eq .ShuffleIntervalDays 14}}selected{{end}}>Every 2 weeks</option>
+                        <option value="30" {{if eq .ShuffleIntervalDays 30}}selected{{end}}>Monthly</option>
+                    </select>
+                    <div class="cfg-subtext">
+                        Last shuffled:
+                        {{if .LastShuffledAt}}{{.LastShuffledAt}}{{else}}never{{end}}
+                    </div>
+                </div>
+                {{end}}
             </div>
         </div>
         {{end}}

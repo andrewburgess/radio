@@ -7,6 +7,9 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"time"
+
+	"andrewburgess.io/radio/store"
 )
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -144,10 +147,12 @@ func stationLabel(bucket, total int, mode string) string {
 // renderStationConfig builds the bucket grid for music or podcast config pages.
 func (s *Server) renderStationConfig(w http.ResponseWriter, mode string) {
 	type bucketRow struct {
-		Index    int
-		Label    string
-		URI      string
-		ImageURL string
+		Index               int
+		Label               string
+		URI                 string
+		ImageURL            string
+		ShuffleIntervalDays int
+		LastShuffledAt      string // human-readable, empty = never
 	}
 
 	stations, err := s.store.ListStations(mode)
@@ -158,15 +163,22 @@ func (s *Server) renderStationConfig(w http.ResponseWriter, mode string) {
 	}
 
 	// Build a lookup map so we can fill sparse results into a dense slice.
-	uriByBucket := make(map[int]string, len(stations))
-	for _, st := range stations {
-		uriByBucket[st.Bucket] = st.PlaylistURI
+	stationByBucket := make(map[int]*store.Station, len(stations))
+	for i := range stations {
+		stationByBucket[stations[i].Bucket] = &stations[i]
 	}
 
 	rows := make([]bucketRow, s.cfg.BucketCount)
 	var assignedURIs []string
 	for i := 0; i < s.cfg.BucketCount; i++ {
-		row := bucketRow{Index: i, Label: stationLabel(i, s.cfg.BucketCount, mode), URI: uriByBucket[i]}
+		row := bucketRow{Index: i, Label: stationLabel(i, s.cfg.BucketCount, mode)}
+		if st := stationByBucket[i]; st != nil {
+			row.URI = st.PlaylistURI
+			row.ShuffleIntervalDays = st.ShuffleIntervalDays
+			if st.LastShuffledAt != nil {
+				row.LastShuffledAt = formatTimeAgo(*st.LastShuffledAt)
+			}
+		}
 		if row.URI != "" {
 			// Render path: local cache only, no network calls.
 			row.ImageURL = s.localImageURL(row.URI)
@@ -191,6 +203,21 @@ func (s *Server) renderStationConfig(w http.ResponseWriter, mode string) {
 	}
 }
 
+func formatTimeAgo(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < 24*time.Hour:
+		return "today"
+	case d < 48*time.Hour:
+		return "yesterday"
+	case d < 30*24*time.Hour:
+		days := int(d / (24 * time.Hour))
+		return fmt.Sprintf("%d days ago", days)
+	default:
+		return t.Format("Jan 2, 2006")
+	}
+}
+
 // saveStationConfig persists form-submitted bucket URIs for music or podcast mode.
 func (s *Server) saveStationConfig(w http.ResponseWriter, r *http.Request, mode, redirectTo string) {
 	if err := r.ParseForm(); err != nil {
@@ -203,6 +230,12 @@ func (s *Server) saveStationConfig(w http.ResponseWriter, r *http.Request, mode,
 		uri := r.FormValue(fmt.Sprintf("bucket_%d", i))
 		if err := s.store.SetStation(i, mode, uri, ""); err != nil {
 			slog.Error("config: set station failed", "mode", mode, "bucket", i, "err", err)
+		}
+		if mode == "music" {
+			days, _ := strconv.Atoi(r.FormValue(fmt.Sprintf("shuffle_%d", i)))
+			if err := s.store.SetShuffleInterval(i, mode, days); err != nil {
+				slog.Error("config: set shuffle interval", "bucket", i, "err", err)
+			}
 		}
 		if uri != "" {
 			assignedURIs = append(assignedURIs, uri)
@@ -247,6 +280,9 @@ func (s *Server) handleMusicShuffle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := s.store.RecordShuffle(bucket, "music"); err != nil {
+		slog.Warn("shuffle: record timestamp", "bucket", bucket, "err", err)
+	}
 	slog.Info("shuffle: complete", "bucket", bucket, "uri", station.PlaylistURI)
 	w.WriteHeader(http.StatusNoContent)
 }
