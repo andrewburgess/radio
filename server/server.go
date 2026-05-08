@@ -106,6 +106,7 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 	go s.runStateUpdater()
 	go s.runSSEPublisher()
 	go s.runStationController()
+	go s.runShuffleScheduler()
 	s.registerRoutes()
 	return s, nil
 }

@@ -29,6 +29,9 @@ type Config struct {
 	InterstitialDuckLevel       int
 	InterstitialChanceIncrement float64
 
+	// Playlist shuffle scheduler
+	ShuffleCheckHour int // hour of day (0-23) to run the nightly shuffle check
+
 	// Image cache
 	ImageCacheDir string
 
@@ -140,6 +143,11 @@ func Load() (*Config, error) {
 
 	cfg.ImageCacheDir = getEnv("IMAGE_CACHE_DIR", "image-cache")
 	cfg.ShowDebug = os.Getenv("SHOW_DEBUG") == "true"
+
+	cfg.ShuffleCheckHour, err = getEnvInt("SHUFFLE_CHECK_HOUR", 3)
+	if err != nil {
+		return nil, fmt.Errorf("config: SHUFFLE_CHECK_HOUR: %w", err)
+	}
 
 	// Hardware
 	cfg.AmpGPIOPin = getEnv("AMP_GPIO_PIN", "GPIO26")

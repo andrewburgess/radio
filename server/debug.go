@@ -52,6 +52,12 @@ func newRadioState() *radioState {
 	}
 }
 
+func (rs *radioState) currentPlaylistURI() string {
+	rs.mu.RLock()
+	defer rs.mu.RUnlock()
+	return rs.playlistURI
+}
+
 // stateSnapshot is a lock-free copy of radioState used for template rendering
 // and SSE initial snapshots.
 type stateSnapshot struct {

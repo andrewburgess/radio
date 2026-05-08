@@ -149,6 +149,7 @@ Do not create files outside this structure without a good reason.
 | `INTERSTITIAL_DIR`              | Root directory for DJ interstitial clips (`<dir>/<playlist-slug>/*.mp3`)                          | `interstitials`       |
 | `INTERSTITIAL_DUCK_LEVEL`       | Spotify volume % while an interstitial plays (0–100)                                              | `20`                  |
 | `INTERSTITIAL_CHANCE_INCREMENT` | Percent added to trigger chance per song since last interstitial                                  | `10`                  |
+| `SHUFFLE_CHECK_HOUR`            | Hour of day (0–23, local time) at which the nightly playlist shuffle check runs                  | `3`                   |
 
 ## SQLite Schema
 
