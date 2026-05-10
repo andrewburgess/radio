@@ -176,6 +176,28 @@ func (p *Process) Unduck(ctx context.Context, duration time.Duration) {
 	}
 }
 
+// SetVolumeDirect immediately sets the librespot PipeWire sink volume to pct
+// (0–100) without any fade ramp. Used for live tune-quality ducking where low
+// latency matters more than a smooth transition. No-op if the sink is not found.
+func (p *Process) SetVolumeDirect(pct int) {
+	id := p.cachedSinkID()
+	if id < 0 {
+		var err error
+		id, err = findSinkInputID()
+		if err != nil {
+			slog.Debug("librespot: set volume direct: sink not found", "err", err)
+			return
+		}
+		p.sinkMu.Lock()
+		p.sinkInputID = id
+		p.sinkMu.Unlock()
+	}
+	if err := p.setSinkVolume(id, pct); err != nil {
+		slog.Debug("librespot: set volume direct", "id", id, "pct", pct, "err", err)
+		p.invalidateSinkID()
+	}
+}
+
 func (p *Process) cachedSinkID() int {
 	p.sinkMu.Lock()
 	defer p.sinkMu.Unlock()

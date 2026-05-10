@@ -38,11 +38,11 @@ type LibrespotController interface {
 	FadeIn(ctx context.Context, duration time.Duration)
 	Duck(ctx context.Context, targetPct int, duration time.Duration)
 	Unduck(ctx context.Context, duration time.Duration)
+	SetVolumeDirect(pct int)
 }
 
 type Server struct {
 	cfg                   *config.Config
-	staticMinGain         float64
 	interstitialDuckLevel int
 	mux                   *http.ServeMux
 	httpServer            *http.Server
@@ -87,7 +87,6 @@ func New(cfg *config.Config, spotifyClient *spotify.Client, db *store.Store, bus
 
 	s := &Server{
 		cfg:                   cfg,
-		staticMinGain:         cfg.DialStaticMinGain,
 		interstitialDuckLevel: cfg.InterstitialDuckLevel,
 		mux:                   http.NewServeMux(),
 		templates:             templates,

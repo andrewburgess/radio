@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/rand"
 	"strings"
 	"sync/atomic"
@@ -96,9 +97,10 @@ func (s *Server) runStationController() {
 			tuneQuality = e.TuneQuality
 			if assigned {
 				s.staticAudio.SetGain(s.staticGain(tuneQuality))
-				// Entering the sweet spot: shuffle to a fresh static position.
-				if tuneQuality >= 1.0 && prevQuality < 1.0 {
-					s.staticAudio.Shuffle()
+				// Duck the music stream in 10% steps based on signal loss.
+				newVol := tuneVolumePct(tuneQuality)
+				if newVol != tuneVolumePct(prevQuality) {
+					s.librespot.SetVolumeDirect(newVol)
 				}
 			}
 
@@ -109,8 +111,9 @@ func (s *Server) runStationController() {
 
 		case events.KindStaticStopped:
 			assigned = true
-			// Snap gain to match the current tune quality immediately.
+			// Snap static gain and music volume to match the current tune quality.
 			s.staticAudio.SetGain(s.staticGain(tuneQuality))
+			s.librespot.SetVolumeDirect(tuneVolumePct(tuneQuality))
 
 		case events.KindToggleSwitched:
 			mode = e.Mode
@@ -263,9 +266,9 @@ func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
 			slog.Debug("station: pause before static", "err", err)
 		}
 		s.amp.Unmute()
-		// Full volume for unassigned buckets; shuffle to a fresh position so
-		// each empty station sounds different.
 		s.staticAudio.SetGain(1.0)
+		// Shuffle to a different file so each empty station has its own character.
+		// The preceding FadeOut means the gap during file-switch is inaudible.
 		s.staticAudio.Shuffle()
 		s.bus.Publish(events.Event{Kind: events.KindStaticStarted})
 		return
@@ -419,19 +422,29 @@ func (s *Server) stopPlayback() {
 	s.librespot.Stop()
 }
 
-// staticGain converts a tune quality value (0-1) into a static audio gain.
-// At quality=1 (sweet spot) the gain is 0 (silent). Below 1 the gain is
-// floored to staticMinGain so static is immediately audible as soon as the
-// dial leaves the sweet spot, then ramps to 1.0 at the bucket boundary.
+// staticGain converts tune quality (0–1) into a static audio gain.
+// At quality >= 0.9 the gain is 0 (silent). Below 0.9 it is 1.0 (full
+// volume) — static interference is dramatic and immediate.
 func (s *Server) staticGain(quality float64) float64 {
-	if quality >= 1.0 {
+	if quality >= 0.9 {
 		return 0
 	}
-	gain := 1.0 - quality
-	if gain < s.staticMinGain {
-		gain = s.staticMinGain
+	return 1.0
+}
+
+// tuneVolumePct converts tune quality (0–1) to the target music stream volume
+// in percent using a power curve. At quality >= 0.9 the stream is at full
+// volume. Below that the duck grows non-linearly: barely perceptible near 0.9,
+// around 30% duck at 0.5, and ~75% duck at 0.1.
+//
+// Curve: vol = (quality / 0.9) ^ 0.6 — anchored so that:
+//
+//	quality=0.9 → 100%, quality=0.5 → ~70%, quality=0.1 → ~27%
+func tuneVolumePct(quality float64) int {
+	if quality >= 0.9 {
+		return 100
 	}
-	return gain
+	return int(math.Round(math.Pow(quality/0.9, 0.6) * 100))
 }
 
 // playInterstitial ducks the Spotify stream, plays a randomly selected clip

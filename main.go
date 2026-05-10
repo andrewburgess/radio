@@ -95,7 +95,8 @@ func main() {
 	}
 
 	staticAudio := audio.NewStatic(audioCtx, audio.Config{
-		Files: cfg.StaticAudioFiles,
+		Files:          cfg.StaticAudioFiles,
+		GainMultiplier: cfg.StaticAudioGain,
 	})
 	// staticAudio.Start() / Stop() are called by station-switch logic.
 	// Ensure it is stopped on shutdown.

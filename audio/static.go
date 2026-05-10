@@ -15,21 +15,19 @@ import (
 	mp3 "github.com/hajimehoshi/go-mp3"
 )
 
-// gainReader wraps an io.Reader and applies a smoothly-ramped gain (0-1) to
-// each int16 PCM sample. Gain ramps toward the target at a fixed per-sample
-// rate to avoid audible clicks on sudden changes.
+// gainReader wraps an io.Reader and applies a smoothly-ramped gain to each
+// int16 PCM sample. Gain ramps toward the target at rampRate per sample to
+// avoid audible clicks on sudden changes.
 type gainReader struct {
-	r       io.Reader
-	mu      sync.Mutex
-	current float32
-	target  float32
+	r        io.Reader
+	mu       sync.Mutex
+	current  float32
+	target   float32
+	rampRate float32
 }
 
-// rampPerSample gives a full 0->1 swing in ~200 ms at 48 kHz.
-const rampPerSample = float32(1.0 / 9600.0)
-
-func newGainReader(r io.Reader, initial float32) *gainReader {
-	return &gainReader{r: r, current: initial, target: initial}
+func newGainReader(r io.Reader, initial, rampRate float32) *gainReader {
+	return &gainReader{r: r, current: initial, target: initial, rampRate: rampRate}
 }
 
 func (g *gainReader) setTarget(v float32) {
@@ -51,12 +49,12 @@ func (g *gainReader) Read(p []byte) (int, error) {
 
 	for i := 0; i+1 < n; i += 2 {
 		if cur < tgt {
-			cur += rampPerSample
+			cur += g.rampRate
 			if cur > tgt {
 				cur = tgt
 			}
 		} else if cur > tgt {
-			cur -= rampPerSample
+			cur -= g.rampRate
 			if cur < tgt {
 				cur = tgt
 			}
@@ -145,7 +143,8 @@ func (s *Static) IsPlaying() bool {
 // The change is applied smoothly over ~200 ms to avoid clicks. Safe to call
 // from any goroutine at any time, including when not playing.
 func (s *Static) SetGain(g float64) {
-	v := float32(math.Max(0, math.Min(1, g)))
+	clamped := math.Max(0, math.Min(1, g))
+	v := float32(clamped * s.cfg.GainMultiplier)
 	s.mu.Lock()
 	s.gainTarget = v
 	gr := s.gr
@@ -212,8 +211,11 @@ func (s *Static) runFile(file string, stopCh <-chan struct{}) (reshuffled bool) 
 	}
 	seekRandom(dec)
 
+	// Scale ramp rate so a full 0↔max swing always takes ~200ms at 48kHz,
+	// regardless of the gain multiplier.
+	rampRate := float32(s.cfg.GainMultiplier / 9600.0)
 	s.mu.Lock()
-	gr := newGainReader(dec, s.gainTarget)
+	gr := newGainReader(dec, s.gainTarget, rampRate)
 	s.gr = gr
 	s.mu.Unlock()
 

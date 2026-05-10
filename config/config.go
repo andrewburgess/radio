@@ -23,6 +23,7 @@ type Config struct {
 
 	// Static audio
 	StaticAudioFiles []string
+	StaticAudioGain  float64
 
 	// Interstitial DJ clips
 	InterstitialDir             string
@@ -130,6 +131,10 @@ func Load() (*Config, error) {
 
 	// Static audio - comma-separated list of MP3 file paths.
 	cfg.StaticAudioFiles = getEnvStringSlice("STATIC_AUDIO_FILES", []string{"static/noise.mp3"})
+	cfg.StaticAudioGain, err = getEnvFloat("STATIC_AUDIO_GAIN", 3.0)
+	if err != nil {
+		return nil, fmt.Errorf("config: STATIC_AUDIO_GAIN: %w", err)
+	}
 
 	cfg.InterstitialDir = getEnv("INTERSTITIAL_DIR", "interstitials")
 	cfg.InterstitialDuckLevel, err = getEnvInt("INTERSTITIAL_DUCK_LEVEL", 20)
