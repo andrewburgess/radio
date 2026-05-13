@@ -97,10 +97,12 @@ func (s *Server) runStationController() {
 			tuneQuality = e.TuneQuality
 			if assigned {
 				s.staticAudio.SetGain(s.staticGain(tuneQuality))
-				// Duck the music stream in 10% steps based on signal loss.
-				newVol := tuneVolumePct(tuneQuality)
-				if newVol != tuneVolumePct(prevQuality) {
-					s.librespot.SetVolumeDirect(newVol)
+				// Don't fight the interstitial Duck with quality-based volume changes.
+				if !interstitialRunning.Load() {
+					newVol := tuneVolumePct(tuneQuality)
+					if newVol != tuneVolumePct(prevQuality) {
+						s.librespot.SetVolumeDirect(newVol)
+					}
 				}
 			}
 
@@ -111,9 +113,7 @@ func (s *Server) runStationController() {
 
 		case events.KindStaticStopped:
 			assigned = true
-			// Snap static gain and music volume to match the current tune quality.
 			s.staticAudio.SetGain(s.staticGain(tuneQuality))
-			s.librespot.SetVolumeDirect(tuneVolumePct(tuneQuality))
 
 		case events.KindToggleSwitched:
 			mode = e.Mode
