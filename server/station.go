@@ -74,19 +74,29 @@ func (s *Server) runStationController() {
 	// startSwitch cancels any in-flight switchStation goroutine then launches a
 	// new one. This ensures rapid dial movement doesn't stack up concurrent
 	// Spotify API calls that race to be the last writer.
-	startSwitch := func(b int, m string) {
+	// assigned is cleared immediately so quality events don't fight the FadeOut
+	// by calling SetVolumeDirect while the old track is still playing.
+	startSwitch := func(b int, m string, fd time.Duration) {
 		cancelAll()
+		assigned = false
 		ctx, cancel := context.WithCancel(context.Background())
 		cancelSwitch = cancel
-		go s.switchStation(ctx, b, m)
+		go s.switchStation(ctx, b, m, fd)
 	}
 
 	for e := range ch {
 		switch e.Kind {
 		case events.KindDialMoved:
+			prevBucket := bucket
 			bucket = e.Bucket
 			if powered && mode != events.ModeSpeaker {
-				startSwitch(bucket, string(mode))
+				// Large jumps (>1 bucket) mean the user has definitely left the
+				// station — use a short fade instead of the normal 250ms grace.
+				fd := fadeDuration
+				if d := bucket - prevBucket; d > 1 || d < -1 {
+					fd = 50 * time.Millisecond
+				}
+				startSwitch(bucket, string(mode), fd)
 			}
 
 		case events.KindTuneQualityChanged:
@@ -122,7 +132,7 @@ func (s *Server) runStationController() {
 					cancelAll()
 					go s.enterSpeakerMode()
 				} else {
-					startSwitch(bucket, string(mode))
+					startSwitch(bucket, string(mode), fadeDuration)
 				}
 			}
 
@@ -164,7 +174,7 @@ func (s *Server) runStationController() {
 					cancelAll()
 					go s.enterSpeakerMode()
 				} else {
-					startSwitch(bucket, string(mode))
+					startSwitch(bucket, string(mode), fadeDuration)
 				}
 			} else {
 				// Cancel any in-flight switch and interstitial before tearing down.
@@ -177,7 +187,7 @@ func (s *Server) runStationController() {
 			// episodes are played as single URIs so we must advance manually.
 			if powered && mode == events.ModePodcast {
 				expectingStop = true
-				startSwitch(bucket, string(mode))
+				startSwitch(bucket, string(mode), fadeDuration)
 			}
 
 		case events.KindPlaybackStopped:
@@ -200,7 +210,7 @@ func (s *Server) runStationController() {
 			// while powered on, this is the user returning to the radio.
 			if powered && sessionLost && mode != events.ModeSpeaker {
 				sessionLost = false
-				startSwitch(bucket, string(mode))
+				startSwitch(bucket, string(mode), fadeDuration)
 			}
 
 		case events.KindSessionDisconnected:
@@ -234,7 +244,7 @@ func (s *Server) runStationController() {
 			// Resume immediately if librespot was paused externally (e.g. from
 			// a phone) while the radio is supposed to be playing continuously.
 			if !e.Playing && powered && mode != events.ModeSpeaker && assigned {
-				startSwitch(bucket, string(mode))
+				startSwitch(bucket, string(mode), fadeDuration)
 			}
 		}
 	}
@@ -245,8 +255,8 @@ func (s *Server) runStationController() {
 // ctx is cancelled by runStationController when a newer switch supersedes this one.
 const fadeDuration = 250 * time.Millisecond
 
-func (s *Server) switchStation(ctx context.Context, bucket int, mode string) {
-	s.librespot.FadeOut(ctx, fadeDuration)
+func (s *Server) switchStation(ctx context.Context, bucket int, mode string, fadeDur time.Duration) {
+	s.librespot.FadeOut(ctx, fadeDur)
 	if ctx.Err() != nil {
 		return
 	}
